@@ -11,6 +11,12 @@ builder.Services.AddControllersWithViews()
 		.AddNewtonsoftJson(options => { options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore; 
 		}); // 啟用 Newtonsoft.Json 並配置避免循環引用
 
+builder.Services.AddLogging(configure =>
+{
+    configure.AddConsole();
+    configure.AddDebug();
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

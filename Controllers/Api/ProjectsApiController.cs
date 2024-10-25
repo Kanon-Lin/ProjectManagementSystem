@@ -6,7 +6,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
 using ProjectManagementSystem.Models.EFModels;
+using ProjectManagementSystem.Models.ViewModels;
 
 namespace ProjectManagementSystem.Controllers.Api
 {
@@ -26,12 +28,27 @@ namespace ProjectManagementSystem.Controllers.Api
 		[HttpGet]
 		public async Task<ActionResult<IEnumerable<Project>>> GetProjects([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
 		{
+			var totalProjects= await _context.Projects.CountAsync();       // 使用CountAsync()計算總的專案數量
+
+			// 根據當前頁數和頁大小取得專案資料
 			var projects = await _context.Projects
-				.Skip((pageNumber - 1) * pageSize)
-				.Take(pageSize)
+				.Skip((pageNumber - 1) * pageSize)  // 跳過前幾頁的資料
+				.Take(pageSize)                     // 取出當前頁的資料
 				.ToListAsync();
 
-			return Ok(projects);
+			var totalPages =(int)Math.Ceiling((double)totalProjects/pageSize);  //計算總頁數
+
+			var result = new
+			{
+				TotalProjects = totalProjects,   // 總的專案數量
+				PageNumber = pageNumber,         // 當前頁數
+				PageSize = pageSize,             // 每頁大小
+				TotalPages = totalPages,         // 總頁數
+				Projects = projects              // 當前頁的專案列表
+			};
+
+			return Ok(result);
+
 		}
 
 		// GET: api/ProjectsApi/5
@@ -48,21 +65,16 @@ namespace ProjectManagementSystem.Controllers.Api
 			return Ok(project);
 		}
 
-        // PUT: api/ProjectsApi/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
+
+		// PUT: api/ProjectsApi/5
+		// To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+		[HttpPut("{id}")]
         public async Task<IActionResult> PutProject(int id, Project project)
         {
 			if (id != project.ProjectId)
 			{
 				return BadRequest("The project ID in the URL and body must match.");
 			}
-
-			if (!ModelState.IsValid)
-			{
-				return BadRequest(ModelState);  // 模型驗證失敗時返回錯誤
-			}
-
 
 			_context.Entry(project).State = EntityState.Modified;
 
@@ -114,8 +126,6 @@ namespace ProjectManagementSystem.Controllers.Api
 				return BadRequest(new { message = ex.Message });
 			}
 
-			await _context.SaveChangesAsync();
-
 			return NoContent();
 		}
 
@@ -126,10 +136,6 @@ namespace ProjectManagementSystem.Controllers.Api
 		[HttpPost]
         public async Task<ActionResult<Project>> PostProject(Project project)
         {
-			if (!ModelState.IsValid)
-			{
-				return BadRequest(ModelState);  // 模型驗證失敗時返回錯誤
-			}
 			_context.Projects.Add(project);
             await _context.SaveChangesAsync();
 

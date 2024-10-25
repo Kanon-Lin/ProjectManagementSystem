@@ -19,6 +19,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<Project> Projects { get; set; }
 
+    public virtual DbSet<ProjectManager> ProjectManagers { get; set; }
+
     public virtual DbSet<Task> Tasks { get; set; }
 
     public virtual DbSet<TaskAssignment> TaskAssignments { get; set; }
@@ -95,12 +97,27 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.StartDate).HasColumnType("datetime");
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
-                .HasDefaultValue("進行中");
+                .HasDefaultValue("Not Started");
 
             entity.HasOne(d => d.Owner).WithMany(p => p.Projects)
                 .HasForeignKey(d => d.OwnerId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Projects_OwnerId");
+
+            entity.HasOne(d => d.OwnerNavigation).WithMany(p => p.Projects)
+                .HasForeignKey(d => d.OwnerId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Projects__OwnerI__3C69FB99");
+        });
+
+        modelBuilder.Entity<ProjectManager>(entity =>
+        {
+            entity.HasKey(e => e.ManagerId).HasName("PK__ProjectM__3BA2AA811D798C4D");
+
+            entity.Property(e => e.ManagerId).HasColumnName("ManagerID");
+            entity.Property(e => e.Name)
+                .IsRequired()
+                .HasMaxLength(100);
         });
 
         modelBuilder.Entity<Task>(entity =>

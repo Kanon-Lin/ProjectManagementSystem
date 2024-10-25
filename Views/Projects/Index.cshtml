@@ -1,0 +1,65 @@
+﻿@model ProjectManagementSystem.Models.ViewModels.ProjectListVm
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ProjectManagementSystem</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/ProjectManagementSystem.styles.css" asp-append-version="true" />
+</head>
+
+<h2>Projects Lists</h2>
+
+@if (Model.Projects.Any())
+{
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Project Name</th>
+                <th>Description</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Status</th>
+                <th>Manager</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var project in Model.Projects)
+            {
+                <tr>
+                    <td>@project.Name</td>
+                    <td>@project.Description</td>
+                    <td>@project.StartDate.ToShortDateString()</td>
+                    <td>@project.EndDate?.ToShortDateString()</td>
+                    <td>@project.Status</td>
+                    <td>@project.Owner?.Name</td> <!-- 使用導航屬性來顯示專案經理的名字 -->
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No projects available.</p>
+}
+
+<div class="pagination">
+    @if (Model.PageNumber > 1)
+    {
+        <a class="btn btn-primary" href="?pageNumber=@(Model.PageNumber - 1)&pageSize=@Model.PageSize">&laquo;</a>
+    }
+    else
+    {
+        <span class="btn btn-secondary disabled">&laquo;</span>
+    }
+
+    @if (Model.PageNumber < Model.TotalPages)
+    {
+        <a class="btn btn-primary" href="?pageNumber=@(Model.PageNumber + 1)&pageSize=@Model.PageSize">&raquo;</a>
+    }
+    else
+    {
+        <span class="btn btn-secondary disabled">&raquo;</span>
+    }
+</div>

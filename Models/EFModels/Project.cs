@@ -21,7 +21,9 @@ public partial class Project
 
     public string Status { get; set; }
 
-    public virtual TeamMember Owner { get; set; }
+    public virtual ProjectManager Owner { get; set; }
+
+    public virtual TeamMember OwnerNavigation { get; set; }
 
     public virtual ICollection<Task> Tasks { get; set; } = new List<Task>();
 }

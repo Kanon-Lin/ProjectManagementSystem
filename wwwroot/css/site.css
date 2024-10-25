@@ -20,3 +20,12 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+table {
+    margin-top: 20px;
+}
+
+th, td {
+    padding: 15px;
+    text-align: left;
+}
