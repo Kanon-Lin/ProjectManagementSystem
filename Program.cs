@@ -11,6 +11,8 @@ builder.Services.AddControllersWithViews()
 		.AddNewtonsoftJson(options => { options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore; 
 		}); // 啟用 Newtonsoft.Json 並配置避免循環引用
 
+builder.Services.AddEndpointsApiExplorer();
+
 builder.Services.AddLogging(configure =>
 {
     configure.AddConsole();
@@ -36,6 +38,8 @@ app.UseAuthorization();
 
 app.MapControllerRoute(
 	name: "default",
-	pattern: "{controller=Home}/{action=Index}/{id?}");
+	pattern: "{controller=Projects}/{action=Index}/{id?}");
+
+app.MapControllers();
 
 app.Run();

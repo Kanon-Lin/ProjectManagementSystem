@@ -1,0 +1,250 @@
+﻿@model ProjectManagementSystem.Models.ViewModels.ProjectDetailsVm
+
+@{
+    ViewData["Title"] = "Project Details";
+    Layout = "_Layout";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+}
+
+<div class="container" id="app" v-cloak>
+    <!-- 載入指示器 -->
+    <div v-if="loading" class="text-center my-4">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- 錯誤訊息 -->
+    <div v-if="error" class="alert alert-danger" role="alert">
+        {{ error }}
+    </div>
+
+    <!-- 專案詳情卡片 -->
+    <div v-if="!loading && !error" class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">{{project.name}}</h3>
+            <div>
+                <button type="button" class="btn btn-primary" v-on:click="openEditModal">
+                    <i class="bi bi-pencil"></i> Edit Project
+                </button>
+                <a href="/Projects" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Description</dt>
+                <dd class="col-sm-9">{{project.description || 'No description provided'}}</dd>
+
+                <dt class="col-sm-3">Status</dt>
+                <dd class="col-sm-9">
+                    <span :class="'badge bg-' + getStatusColor(project.status)">
+                        {{project.status}}
+                    </span>
+                </dd>
+
+                <dt class="col-sm-3">Project Manager</dt>
+                <dd class="col-sm-9">{{project.ownerName || 'Not assigned'}}</dd>
+
+                <dt class="col-sm-3">Start Date</dt>
+                <dd class="col-sm-9">{{formatDate(project.startDate)}}</dd>
+
+                <dt class="col-sm-3">End Date</dt>
+                <dd class="col-sm-9">{{project.endDate ? formatDate(project.endDate) : 'Not set'}}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <!-- 任務列表卡片 -->
+    <div v-if="!loading && !error" class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">Tasks</h3>
+            <button class="btn btn-success" onclick="openAddTaskModal">
+                <i class="bi bi-plus"></i> Add Task
+            </button>
+        </div>
+        <div class="card-body">
+            <table class="table" v-if="project.tasks && project.tasks.length">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Status</th>
+                        <th>Due Date</th>
+                        <th>Priority</th>
+                        <th>Assigned To</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="task in project.tasks" :key="task.taskId">
+                        <td>{{task.title}}</td>
+                        <td>
+                            <span :class="'badge bg-' + getStatusColor(task.status)">
+                                {{task.status}}
+                            </span>
+                        </td>
+                        <td>{{formatDate(task.dueDate)}}</td>
+                        <td>
+                            <span :class="'badge bg-' + getPriorityColor(task.priority)">
+                                {{task.priority}}
+                            </span>
+                        </td>
+                        <td>{{task.assignedToName || 'Unassigned'}}</td>
+                        <td>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-info" @* onclick="editTask(task)" *@>
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" @* onclick="confirmDeleteTask(task)" *@>
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p v-else class="text-center py-4">No tasks available for this project.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<partial name="_ProjectEditModal" model="@Model" />
+@* <partial name="_TaskCreateModal" model="@Model" />
+<partial name="_TaskEditModal" model="@Model" />
+ *@
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    project: {
+                        projectId: @Model.ProjectId,
+                        name: '@Html.Raw(Json.Serialize(Model.Name))',
+                        description: '@Html.Raw(Json.Serialize(Model.Description))',
+                        status: '@Model.Status',
+                        ownerId: '@Model.OwnerId',
+                        ownerName: '@Html.Raw(Json.Serialize(Model.OwnerName))',
+                        startDate: '@Model.StartDate.ToString("yyyy-MM-dd")',
+                        endDate: '@(Model.EndDate.HasValue ? Model.EndDate.Value.ToString("yyyy-MM-dd") : "")',
+                        tasks: []
+                    },
+                    projectManagers: @Html.Raw(Json.Serialize(Model.ProjectManagers)),
+                    statusOptions: @Html.Raw(Json.Serialize(Model.StatusOptions)),
+                    loading: true,
+                    error: null,
+                    editingProject: null
+
+                }
+            },
+            methods: {
+                async loadProject() {
+                    try 
+                    {
+                        console.log('Fetching project with ID:', this.project.projectId); // 調試用
+
+                        const response = await axios.get(`/api/ProjectsApi/${this.project.projectId}`);
+
+                        console.log('API Response:', response); // 調試用
+
+                        this.project = response.data;
+                    } 
+                    catch (error) 
+                    {
+                        console.error('Detailed error:', error.response || error); // 詳細錯誤信息
+
+                        this.error = `Failed to load project: ${error.response?.status} ${error.response?.statusText || error.message}`;
+                    } 
+                    finally 
+                    {
+                        this.loading = false;
+                    }
+                },
+                openEditModal() {
+
+                    // 使用 Bootstrap 的方式開啟 Modal
+                    const modal = new bootstrap.Modal(document.getElementById('editProjectModal'));
+                    modal.show();
+                },
+                async saveProject() {
+                    try {
+                        const response = await axios.put(`/api/ProjectsApi/${this.project.projectId}`, {
+                            projectId: this.project.projectId,
+                            name: this.project.name,
+                            description: this.project.description,
+                            status: this.project.status,
+                            ownerId: this.project.ownerId
+                        });
+
+                        // 重新載入專案資料
+                        await this.loadProject();
+
+                        // 關閉 Modal
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('editProjectModal'));
+                        modal.hide();
+
+                        // 可以添加成功提示
+                        alert('Project updated successfully');
+                    } catch (error) {
+                        console.error('Error updating project:', error);
+                        alert('Failed to update project');
+                    }
+                },
+                openAddTaskModal() {
+                    const modal = new bootstrap.Modal(document.getElementById('taskCreateModal'));
+                    modal.show();
+                },
+                async editTask(task) {
+                    // 將任務數據設置到編輯表單中
+                    this.editingTask = { ...task };
+                    const modal = new bootstrap.Modal(document.getElementById('taskEditModal'));
+                    modal.show();
+                },
+                async confirmDeleteTask(task) {
+                    if (confirm(`Are you sure you want to delete task "${task.title}"?`)) {
+                        try {
+                            await axios.delete(`/api/Tasks/${task.taskId}`);
+                            await this.loadProject(); // 重新載入專案數據
+                            this.$toast.success('Task deleted successfully');
+                        } catch (error) {
+                            console.error('Error deleting task:', error);
+                            this.$toast.error('Failed to delete task');
+                        }
+                    }
+                },
+                formatDate(date) {
+                    if (!date) return '';
+                    return new Date(date).toLocaleDateString();
+                },
+                getStatusColor(status) {
+                    return {
+                        'Not Started': 'secondary',
+                        'In Progress': 'primary',
+                        'Completed': 'success',
+                        'Cancelled': 'danger'
+                    }[status] || 'info';
+                },
+                getPriorityColor(priority) {
+                    return {
+                        'High': 'danger',
+                        'Medium': 'warning',
+                        'Low': 'info'
+                    }[priority] || 'secondary';
+                }
+            },
+            mounted() {
+                this.loadProject();
+            }
+        }).mount('#app')
+    </script>
+}

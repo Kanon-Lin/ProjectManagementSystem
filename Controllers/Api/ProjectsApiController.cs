@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.JsonPatch;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Client;
+using ProjectManagementSystem.Models.Dtos;
 using ProjectManagementSystem.Models.EFModels;
-using ProjectManagementSystem.Models.ViewModels;
+using ProjectTask = ProjectManagementSystem.Models.EFModels.Task;
+
 
 namespace ProjectManagementSystem.Controllers.Api
 {
@@ -23,158 +18,92 @@ namespace ProjectManagementSystem.Controllers.Api
             _context = context;
         }
 
-		//添加分頁機制來優化性能，避免一次性查詢太多數據。
-		// GET: api/ProjectsApi
-		[HttpGet]
-		public async Task<ActionResult<IEnumerable<Project>>> GetProjects([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
-		{
-			var totalProjects= await _context.Projects.CountAsync();       // 使用CountAsync()計算總的專案數量
-
-			// 根據當前頁數和頁大小取得專案資料
-			var projects = await _context.Projects
-				.Skip((pageNumber - 1) * pageSize)  // 跳過前幾頁的資料
-				.Take(pageSize)                     // 取出當前頁的資料
-				.ToListAsync();
-
-			var totalPages =(int)Math.Ceiling((double)totalProjects/pageSize);  //計算總頁數
-
-			var result = new
-			{
-				TotalProjects = totalProjects,   // 總的專案數量
-				PageNumber = pageNumber,         // 當前頁數
-				PageSize = pageSize,             // 每頁大小
-				TotalPages = totalPages,         // 總頁數
-				Projects = projects              // 當前頁的專案列表
-			};
-
-			return Ok(result);
-
-		}
-
-		// GET: api/ProjectsApi/5
-		[HttpGet("{id}")]
-        public async Task<ActionResult<Project>> GetProject(int id)
+        // GET: api/projects/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ProjectDetailsDto>> GetProject(int id)
         {
-            var project = await _context.Projects.FindAsync(id);
+            var project = await _context.Projects
+                .Include(p => p.Owner)
+                .Include(p => p.Tasks)
+                    .ThenInclude(t => t.AssignedTo)
+                .FirstOrDefaultAsync(p => p.ProjectId == id);
 
             if (project == null)
             {
-                return NotFound(new { message = "Project not found." });// 提供更具描述性的錯誤訊息
-			}
+                return NotFound();
+            }
 
-			return Ok(project);
-		}
+            return new ProjectDetailsDto
+            {
+                ProjectId = project.ProjectId,
+                Name = project.Name,
+                Description = project.Description,
+                Status = project.Status,
+                StartDate = project.StartDate,
+                EndDate = project.EndDate,
+                OwnerName = project.Owner?.Name,
+                Tasks = project.Tasks.Select(t => new TaskDto
+                {
+                    TaskId = t.TaskId,
+                    Title = t.Title,
+                    Description = t.Description,
+                    Status = t.Status,
+                    DueDate = t.DueDate,
+                    Priority = t.Priority,
+                    AssignedToName = t.AssignedTo?.Name
+                }).ToList()
+            };
+        }
 
-
-		// PUT: api/ProjectsApi/5
-		// To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-		[HttpPut("{id}")]
-        public async Task<IActionResult> PutProject(int id, Project project)
+        // PUT: api/projects/{id}
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateProject(int id, ProjectUpdateDto projectDto)
         {
-			if (id != project.ProjectId)
-			{
-				return BadRequest("The project ID in the URL and body must match.");
-			}
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null)
+            {
+                return NotFound();
+            }
 
-			_context.Entry(project).State = EntityState.Modified;
+            project.Name = projectDto.Name;
+            project.Description = projectDto.Description;
+            project.Status = projectDto.Status;
+            project.OwnerId = projectDto.OwnerId;
 
             try
             {
                 await _context.SaveChangesAsync();
+                return NoContent();
             }
-			catch (DbUpdateConcurrencyException ex)
-			{
-				if (!ProjectExists(id))
-				{
-					return NotFound();
-				}
-				else
-				{
-					return StatusCode(500, new { message = "A concurrency error occurred.", detail = ex.Message });
-				}
-			}
-			catch (Exception ex)
-			{
-				return StatusCode(500, new { message = "An error occurred while updating the project.", detail = ex.Message });
-			}
-
-			return NoContent();
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!ProjectExists(id))
+                {
+                    return NotFound();
+                }
+                throw;
+            }
         }
 
-		//當需要更新部分屬性時，PUT 要求必須傳遞整個對象，這在某些場景下可能不那麼靈活。
-		//你可以考慮為部分更新添加 PATCH 支援。這會允許你只更新某些屬性，而不需要提供整個對象。
-		[HttpPatch("{id}")]
-		public async Task<IActionResult> PatchProject(int id, [FromBody] JsonPatchDocument<Project> patchDoc)
-		{
-			if (patchDoc == null)
-			{
-				return BadRequest();
-			}
-
-			var project = await _context.Projects.FindAsync(id);
-			if (project == null)
-			{
-				return NotFound();
-			}
-			try
-			{
-				patchDoc.ApplyTo(project);  // 不再使用 ModelState，使用內部驗證
-				await _context.SaveChangesAsync();
-			}
-			catch (Exception ex)
-			{
-				return BadRequest(new { message = ex.Message });
-			}
-
-			return NoContent();
-		}
-
-
-
-		// POST: api/ProjectsApi
-		// To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-		[HttpPost]
-        public async Task<ActionResult<Project>> PostProject(Project project)
+        // POST: api/projects/{id}/tasks
+        [HttpPost("{projectId}/tasks")]
+        public async Task<ActionResult<TaskDto>> CreateTask(int projectId, TaskCreateDto taskDto)
         {
-			_context.Projects.Add(project);
+            var task = new ProjectTask
+            {
+                ProjectId = projectId,
+                Title = taskDto.Title,
+                Description = taskDto.Description,
+                Status = taskDto.Status,
+                DueDate = taskDto.DueDate,
+                Priority = taskDto.Priority,
+                AssignedToId = taskDto.AssignedToId
+            };
+
+            _context.Tasks.Add(task);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetProject", new { id = project.ProjectId }, project);
-        }
-
-        // DELETE: api/ProjectsApi/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteProject(int id)
-        {
-            var project = await _context.Projects.FindAsync(id);
-            if (project == null)
-            {
-				return NotFound(new { message = "Project not found." }); // 提供更具描述性的錯誤訊息
-			}
-
-            _context.Projects.Remove(project);
-			try
-			{
-				await _context.SaveChangesAsync();
-			}
-			catch (DbUpdateConcurrencyException ex)
-			{
-				if (!ProjectExists(id))
-				{
-					return NotFound();
-				}
-				else
-				{
-					return StatusCode(500, new { message = "A concurrency error occurred.", detail = ex.Message });
-				}
-			}
-			catch (Exception ex)
-			{
-				return StatusCode(500, new { message = "An error occurred while updating the project.", detail = ex.Message });
-			}
-
-
-			return NoContent();
+            return CreatedAtAction(nameof(GetProject), new { id = projectId }, task);
         }
 
         private bool ProjectExists(int id)

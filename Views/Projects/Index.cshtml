@@ -9,7 +9,12 @@
     <link rel="stylesheet" href="~/ProjectManagementSystem.styles.css" asp-append-version="true" />
 </head>
 
-<h2>Projects Lists</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Projects List</h2>
+    <a asp-controller="Projects" asp-action="Create" class="btn btn-primary">
+        <i class="bi bi-plus"></i> Create New Project
+    </a>
+</div>
 
 @if (Model.Projects.Any())
 {
@@ -22,6 +27,7 @@
                 <th>End Date</th>
                 <th>Status</th>
                 <th>Manager</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -34,6 +40,16 @@
                     <td>@project.EndDate?.ToShortDateString()</td>
                     <td>@project.Status</td>
                     <td>@project.Owner?.Name</td> <!-- 使用導航屬性來顯示專案經理的名字 -->
+                    <td>
+                        <div class="btn-group">
+                            <a asp-controller="Projects"
+                               asp-action="Details"
+                               asp-route-id="@project.ProjectId"
+                               class="btn btn-info btn-sm">
+                                <i class="bi bi-info-circle"></i> Details
+                            </a>
+                        </div>
+                    </td>
                 </tr>
             }
         </tbody>
@@ -41,7 +57,9 @@
 }
 else
 {
-    <p>No projects available.</p>
+    <div class="alert alert-info">
+        <p>No projects available. <a asp-controller="Projects" asp-action="Create">Create your first project</a></p>
+    </div>
 }
 
 <div class="pagination">
@@ -53,6 +71,8 @@ else
     {
         <span class="btn btn-secondary disabled">&laquo;</span>
     }
+
+    <span class="mx-2">Page @Model.PageNumber of @Model.TotalPages</span>
 
     @if (Model.PageNumber < Model.TotalPages)
     {

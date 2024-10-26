@@ -1,0 +1,49 @@
+﻿@model ProjectManagementSystem.Models.ViewModels.ProjectDetailsVm
+
+<div class="modal fade" id="editProjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Project</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editProjectForm">
+                    <input type="hidden" v-model="project.projectId" />
+                    <div class="mb-3">
+                        <label class="form-label">Project Name</label>
+                        <input type="text" class="form-control" v-model="project.name" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" v-model="project.description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" v-model="project.status">
+                            <option v-for="status in statusOptions"
+                                    :key="status.value"
+                                    :value="status.value">
+                                {{status.text}}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Project Manager</label>
+                        <select class="form-select" v-model="project.ownerId">
+                            <option v-for="manager in projectManagers"
+                                    :key="manager.value"
+                                    :value="manager.value">
+                                {{manager.text}}
+                            </option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveProject">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
