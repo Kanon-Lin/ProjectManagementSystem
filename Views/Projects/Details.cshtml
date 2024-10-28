@@ -7,6 +7,39 @@
 
 @section Styles {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        [v-cloak] {
+            display: none;
+        }
+
+        /* Modal 相關樣式 */
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+        .was-validated .form-control:invalid:focus,
+        .was-validated .form-select:invalid:focus {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+        }
+
+        .was-validated .form-control:valid:focus,
+        .was-validated .form-select:valid:focus {
+            border-color: #198754;
+            box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+        }
+
+        /* Modal 過渡動畫 */
+        .modal.fade .modal-dialog {
+            transition: transform 0.3s ease-out;
+        }
+
+        .modal.fade.show .modal-dialog {
+            transform: none;
+        }
+    </style>
 }
 
 <div class="container" id="app" v-cloak>
@@ -27,7 +60,7 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <h3 class="mb-0">{{project.name}}</h3>
             <div>
-                <button type="button" class="btn btn-primary" v-on:click="openEditModal">
+                <button type="button" class="btn btn-primary" id="editProjectBtn">
                     <i class="bi bi-pencil"></i> Edit Project
                 </button>
                 <a href="/Projects" class="btn btn-secondary">
@@ -54,7 +87,8 @@
                 <dd class="col-sm-9">{{formatDate(project.startDate)}}</dd>
 
                 <dt class="col-sm-3">End Date</dt>
-                <dd class="col-sm-9">{{project.endDate ? formatDate(project.endDate) : 'Not set'}}</dd>
+                <!-- 修改處 1: 改變結束日期的顯示邏輯 -->
+                <dd class="col-sm-9">{{ project.endDate ? formatDate(project.endDate) : 'Not Set' }}</dd>
             </dl>
         </div>
     </div>
@@ -63,7 +97,7 @@
     <div v-if="!loading && !error" class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h3 class="mb-0">Tasks</h3>
-            <button class="btn btn-success" onclick="openAddTaskModal">
+            <button class="btn btn-success" id="addTaskBtn">
                 <i class="bi bi-plus"></i> Add Task
             </button>
         </div>
@@ -96,10 +130,10 @@
                         <td>{{task.assignedToName || 'Unassigned'}}</td>
                         <td>
                             <div class="btn-group">
-                                <button class="btn btn-sm btn-info" @* onclick="editTask(task)" *@>
+                                <button class="btn btn-sm btn-info edit-task-btn" :data-task-id="task.taskId">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger" @* onclick="confirmDeleteTask(task)" *@>
+                                <button class="btn btn-sm btn-danger delete-task-btn" :data-task-id="task.taskId">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
@@ -110,13 +144,13 @@
             <p v-else class="text-center py-4">No tasks available for this project.</p>
         </div>
     </div>
-</div>
 
-<!-- Modals -->
-<partial name="_ProjectEditModal" model="@Model" />
-@* <partial name="_TaskCreateModal" model="@Model" />
-<partial name="_TaskEditModal" model="@Model" />
- *@
+    <!-- 引入編輯專案 Modal -->
+    <partial name="_ProjectEditModal" model="Model" />
+
+    <!-- 引入創建任務 Modal -->
+    <partial name="_TaskCreateModal" model="Model" />
+</div>
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -124,127 +158,311 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
         const { createApp } = Vue;
-        
+
         createApp({
             data() {
                 return {
                     project: {
                         projectId: @Model.ProjectId,
-                        name: '@Html.Raw(Json.Serialize(Model.Name))',
-                        description: '@Html.Raw(Json.Serialize(Model.Description))',
-                        status: '@Model.Status',
-                        ownerId: '@Model.OwnerId',
-                        ownerName: '@Html.Raw(Json.Serialize(Model.OwnerName))',
-                        startDate: '@Model.StartDate.ToString("yyyy-MM-dd")',
-                        endDate: '@(Model.EndDate.HasValue ? Model.EndDate.Value.ToString("yyyy-MM-dd") : "")',
+                        name: @Html.Raw(Json.Serialize(Model.Name ?? "")),
+                        description: @Html.Raw(Json.Serialize(Model.Description ?? "")),
+                        status: @Html.Raw(Json.Serialize(Model.Status ?? "")),
+                        ownerId: @Html.Raw(Json.Serialize(Model.OwnerId.ToString())),
+                        ownerName: @Html.Raw(Json.Serialize(Model.OwnerName ?? "")),
+                        startDate: @Html.Raw(Json.Serialize(Model.StartDate.ToString("yyyy-MM-dd"))),
+                        endDate: @Html.Raw(Json.Serialize(Model.EndDate.HasValue ? Model.EndDate.Value.ToString("yyyy-MM-dd") : "")),
                         tasks: []
                     },
-                    projectManagers: @Html.Raw(Json.Serialize(Model.ProjectManagers)),
-                    statusOptions: @Html.Raw(Json.Serialize(Model.StatusOptions)),
+                    projectManagers: @Html.Raw(Json.Serialize(Model.ProjectManagers ?? new List<SelectListItem>())),
+                    statusOptions: @Html.Raw(Json.Serialize(Model.StatusOptions ?? new List<SelectListItem>())),
                     loading: true,
                     error: null,
-                    editingProject: null
+                    editModal: null,
 
+                    taskForm: {
+                        title: '',
+                        description: '',
+                        status: '',
+                        priority: '',
+                        dueDate: new Date().toISOString().split('T')[0],
+                        assignedToId: '',
+                        projectId: @Model.ProjectId
+                    },
+                    // 使用 TaskCreateVm 中的選項
+                    taskStatusOptions: @Html.Raw(Json.Serialize(Model.TaskCreateVm.Statuses ?? new List<SelectListItem>())),
+                    taskPriorityOptions: @Html.Raw(Json.Serialize(Model.TaskCreateVm.Priorities ?? new List<SelectListItem>())),
+                    teamMembers: @Html.Raw(Json.Serialize(Model.TaskCreateVm.TeamMembers ?? new List<SelectListItem>())),
+                    loading: true,
+                    error: null,
+                    editModal: null,
+                    taskCreateModal: null,
+                    isSubmitting: false
                 }
             },
             methods: {
-                async loadProject() {
-                    try 
-                    {
-                        console.log('Fetching project with ID:', this.project.projectId); // 調試用
+                formatDate(date) {
+                    if (!date) return 'Not Set';
 
-                        const response = await axios.get(`/api/ProjectsApi/${this.project.projectId}`);
+                    try {
+                        if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                            return date;
+                        }
 
-                        console.log('API Response:', response); // 調試用
+                        const d = new Date(date);
+                        if (isNaN(d.getTime())) return 'Not Set';
 
-                        this.project = response.data;
-                    } 
-                    catch (error) 
-                    {
-                        console.error('Detailed error:', error.response || error); // 詳細錯誤信息
-
-                        this.error = `Failed to load project: ${error.response?.status} ${error.response?.statusText || error.message}`;
-                    } 
-                    finally 
-                    {
-                        this.loading = false;
+                        return d.toISOString().split('T')[0];
+                    } catch {
+                        return 'Not Set';
                     }
                 },
-                openEditModal() {
 
-                    // 使用 Bootstrap 的方式開啟 Modal
-                    const modal = new bootstrap.Modal(document.getElementById('editProjectModal'));
-                    modal.show();
+                validateForm() {
+                    const form = document.getElementById('projectEditForm');
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        form.classList.add('was-validated');
+                        return false;
+                    }
+                    return true;
                 },
+
+                validateDates() {
+                    if (!this.project.endDate || this.project.endDate === 'Not Set') {
+                        return true;
+                    }
+
+                    const startDate = new Date(this.project.startDate);
+                    const endDate = new Date(this.project.endDate);
+
+                    if (endDate < startDate) {
+                        document.getElementById('endDate').setCustomValidity('End date must be after start date');
+                        return false;
+                    }
+
+                    document.getElementById('endDate').setCustomValidity('');
+                    return true;
+                },
+
+                resetFormValidation() {
+                    const form = document.getElementById('projectEditForm');
+                    form.classList.remove('was-validated');
+                    const inputs = form.querySelectorAll('input, select, textarea');
+                    inputs.forEach(input => input.setCustomValidity(''));
+                },
+
+                showEditModal() {
+                    if (this.editModal) {
+                        this.project.startDate = this.formatDate(this.project.startDate);
+                        this.project.endDate = this.project.endDate ? this.formatDate(this.project.endDate) : '';
+
+                        console.log('Opening modal with project data:', {
+                            ...this.project,
+                            projectManagers: this.projectManagers
+                        });
+
+                        this.editModal.show();
+                    }
+                },
+
+                handleSave() {
+                    this.saveProject();
+                },
+
                 async saveProject() {
                     try {
-                        const response = await axios.put(`/api/ProjectsApi/${this.project.projectId}`, {
+                        if (!this.validateForm() || !this.validateDates()) {
+                            return;
+                        }
+
+                        const projectData = {
                             projectId: this.project.projectId,
                             name: this.project.name,
                             description: this.project.description,
                             status: this.project.status,
-                            ownerId: this.project.ownerId
-                        });
+                            ownerId: parseInt(this.project.ownerId, 10),
+                            startDate: this.formatDate(this.project.startDate),
+                            ...(this.project.endDate && this.project.endDate !== 'Not Set'
+                                ? { endDate: this.formatDate(this.project.endDate) }
+                                : {})
+                        };
 
-                        // 重新載入專案資料
-                        await this.loadProject();
+                        console.log('Saving project with data:', projectData);
 
-                        // 關閉 Modal
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('editProjectModal'));
-                        modal.hide();
+                        const response = await axios.put(`/api/ProjectsApi/${this.project.projectId}`, projectData);
 
-                        // 可以添加成功提示
+                        if (response.data) {
+                            const updatedProject = response.data;
+                            const currentTasks = this.project.tasks;
+
+                            this.project = {
+                                ...this.project,
+                                ...updatedProject,
+                                ownerId: updatedProject.ownerId.toString(),
+                                startDate: this.formatDate(updatedProject.startDate),
+                                endDate: updatedProject.endDate ? this.formatDate(updatedProject.endDate) : '',
+                                tasks: currentTasks 
+                            };
+                        } else {
+                            await this.loadProject();
+                        }
+
+                        this.editModal.hide();
                         alert('Project updated successfully');
                     } catch (error) {
                         console.error('Error updating project:', error);
-                        alert('Failed to update project');
+                        alert(`Failed to update project: ${error.response?.data || error.message}`);
                     }
                 },
-                openAddTaskModal() {
-                    const modal = new bootstrap.Modal(document.getElementById('taskCreateModal'));
-                    modal.show();
-                },
-                async editTask(task) {
-                    // 將任務數據設置到編輯表單中
-                    this.editingTask = { ...task };
-                    const modal = new bootstrap.Modal(document.getElementById('taskEditModal'));
-                    modal.show();
-                },
-                async confirmDeleteTask(task) {
-                    if (confirm(`Are you sure you want to delete task "${task.title}"?`)) {
-                        try {
-                            await axios.delete(`/api/Tasks/${task.taskId}`);
-                            await this.loadProject(); // 重新載入專案數據
-                            this.$toast.success('Task deleted successfully');
-                        } catch (error) {
-                            console.error('Error deleting task:', error);
-                            this.$toast.error('Failed to delete task');
-                        }
+
+                async loadProject() {
+                    try {
+                        this.loading = true;
+                        console.log('Loading project ID:', this.project.projectId);
+
+                        const response = await axios.get(`/api/ProjectsApi/${this.project.projectId}`);
+                        console.log('API Response:', response.data);
+
+                        const updatedProject = response.data;
+                        const currentTasks = this.project.tasks;
+
+                        this.project = {
+                            ...this.project,
+                            ...updatedProject,
+                            ownerId: updatedProject.ownerId.toString(),
+                            startDate: this.formatDate(updatedProject.startDate),
+                            endDate: updatedProject.endDate ? this.formatDate(updatedProject.endDate) : '',
+                            tasks: updatedProject.tasks || currentTasks
+                        };
+
+                        console.log('Updated project data:', this.project);
+                        console.log('Project Manager ID:', this.project.ownerId);
+                        console.log('Available Project Managers:', this.projectManagers);
+
+                        this.error = null;
+                    } catch (error) {
+                        console.error('Error loading project:', error);
+                        this.error = `Failed to load project: ${error.response?.data || error.message}`;
+                    } finally {
+                        this.loading = false;
                     }
                 },
-                formatDate(date) {
-                    if (!date) return '';
-                    return new Date(date).toLocaleDateString();
-                },
+
                 getStatusColor(status) {
-                    return {
+                    const colors = {
                         'Not Started': 'secondary',
                         'In Progress': 'primary',
                         'Completed': 'success',
                         'Cancelled': 'danger'
-                    }[status] || 'info';
+                    };
+                    return colors[status] || 'info';
                 },
+
                 getPriorityColor(priority) {
-                    return {
+                    const colors = {
                         'High': 'danger',
                         'Medium': 'warning',
                         'Low': 'info'
-                    }[priority] || 'secondary';
-                }
-            },
-            mounted() {
-                this.loadProject();
+                    };
+                    return colors[priority] || 'secondary';
+                },
+
+                initializeEventListeners() {
+                    if (!this.editModal) {
+                        this.editModal = new bootstrap.Modal(document.getElementById('projectEditModal'));
+                    }
+
+                    const editBtn = document.getElementById('editProjectBtn');
+                    if (editBtn) {
+                        editBtn.removeEventListener('click', this.showEditModal);
+                        editBtn.addEventListener('click', () => this.showEditModal());
+                    }
+
+                    const saveBtn = document.getElementById('saveProjectBtn');
+                    if (saveBtn) {
+                        saveBtn.removeEventListener('click', this.handleSave);
+                        saveBtn.addEventListener('click', () => this.handleSave());
+                    }
+
+                    const modal = document.getElementById('projectEditModal');
+                    if (modal) {
+                        modal.removeEventListener('hidden.bs.modal', this.resetFormValidation);
+                        modal.addEventListener('hidden.bs.modal', () => this.resetFormValidation());
+                    }
+                },
+            
+                initializeTaskModalEventListeners() {
+                    // 初始化 Modal
+                    if (!this.taskCreateModal) {
+                        this.taskCreateModal = new bootstrap.Modal(document.getElementById('taskCreateModal'));
+                    }
+
+                    // Add Task 按鈕
+                    const addTaskBtn = document.getElementById('addTaskBtn');
+                    if (addTaskBtn) {
+                        addTaskBtn.removeEventListener('click', this.showCreateTaskModal);
+                        addTaskBtn.addEventListener('click', () => this.showCreateTaskModal());
+                    }
+
+                    // Save Task 按鈕
+                    const saveTaskBtn = document.getElementById('saveTaskBtn');
+                    if (saveTaskBtn) {
+                        saveTaskBtn.removeEventListener('click', this.handleSaveTask);
+                        saveTaskBtn.addEventListener('click', () => this.handleSaveTask());
+                    }
+
+                    // Modal 關閉事件
+                    const taskModal = document.getElementById('taskCreateModal');
+                    if (taskModal) {
+                        taskModal.removeEventListener('hidden.bs.modal', this.resetTaskForm);
+                        taskModal.addEventListener('hidden.bs.modal', () => this.resetTaskForm());
+                    }
+                },
+
+                handleSaveTask() {
+                    if (this.isSubmitting) return;
+                    this.createTask();
+                },
+
+                async createTask() {
+                    if (!this.validateTaskForm()) return;
+
+                    try {
+                        this.isSubmitting = true;
+                        const saveBtn = document.getElementById('saveTaskBtn');
+                        const originalContent = saveBtn.innerHTML;
+                        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>建立中...';
+
+                        const response = await axios.post(
+                            `/api/ProjectsApi/${this.project.projectId}/tasks`,
+                            this.taskForm
+                        );
+
+                        if (response.data) {
+                            await this.loadProject();
+                            this.taskCreateModal.hide();
+                            alert('任務建立成功');
+                        }
+                    } catch (error) {
+                        console.error('Error creating task:', error);
+                        alert(error.response?.data?.errors || '建立任務時發生錯誤');
+                    } finally {
+                        this.isSubmitting = false;
+                        const saveBtn = document.getElementById('saveTaskBtn');
+                        saveBtn.innerHTML = '建立任務';
+                    }
+                },
+            mounted() 
+            {
+                this.loadProject().then(() => {
+                    this.$nextTick(() => {
+                        this.initializeEventListeners();
+                        console.log('Component mounted, current project manager:', this.project.ownerId);
+                        this.initializeTaskModalEventListeners(); 
+                    });
+                });
             }
-        }).mount('#app')
+        }).mount('#app');
     </script>
-}
+    }

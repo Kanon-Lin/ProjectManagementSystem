@@ -8,6 +8,8 @@
         public string Status { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+        public int OwnerId { get; set; }
+
         public string OwnerName { get; set; }
         public List<TaskDto> Tasks { get; set; }
     }

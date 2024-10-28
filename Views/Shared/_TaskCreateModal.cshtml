@@ -1,0 +1,115 @@
+﻿@model ProjectManagementSystem.Models.ViewModels.ProjectDetailsVm
+
+<!-- Task Create Modal -->
+<div class="modal fade" id="taskCreateModal" tabindex="-1" aria-labelledby="taskCreateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="taskCreateModalLabel">新增任務</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="taskCreateForm" class="needs-validation" novalidate>
+                    <!-- Task Title -->
+                    <div class="mb-3">
+                        <label for="taskTitle" class="form-label">標題<span class="text-danger">*</span></label>
+                        <input type="text"
+                               class="form-control"
+                               id="taskTitle"
+                               v-model="taskForm.title"
+                               required
+                               maxlength="100">
+                        <div class="invalid-feedback">
+                            請輸入任務標題
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label for="taskDescription" class="form-label">描述</label>
+                        <textarea class="form-control"
+                                  id="taskDescription"
+                                  v-model="taskForm.description"
+                                  rows="3"
+                                  maxlength="500"></textarea>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="mb-3">
+                        <label for="taskStatus" class="form-label">狀態<span class="text-danger">*</span></label>
+                        <select class="form-select"
+                                id="taskStatus"
+                                v-model="taskForm.status"
+                                required>
+                            <option value="">請選擇狀態</option>
+                            <option value="Not Started">未開始</option>
+                            <option value="In Progress">進行中</option>
+                            <option value="Completed">已完成</option>
+                        </select>
+                        <div class="invalid-feedback">
+                            請選擇任務狀態
+                        </div>
+                    </div>
+
+                    <!-- Priority -->
+                    <div class="mb-3">
+                        <label for="taskPriority" class="form-label">優先級<span class="text-danger">*</span></label>
+                        <select class="form-select"
+                                id="taskPriority"
+                                v-model="taskForm.priority"
+                                required>
+                            <option value="">請選擇優先級</option>
+                            <option value="High">高</option>
+                            <option value="Medium">中</option>
+                            <option value="Low">低</option>
+                        </select>
+                        <div class="invalid-feedback">
+                            請選擇優先級
+                        </div>
+                    </div>
+
+                    <!-- Assigned To -->
+                    <div class="mb-3">
+                        <label for="taskAssignedTo" class="form-label">負責人</label>
+                        <select class="form-select"
+                                id="taskAssignedTo"
+                                v-model="taskForm.assignedToId">
+                            <option value="">未指派</option>
+                            <option v-for="member in teamMembers"
+                                    :key="member.value"
+                                    :value="member.value">
+                                {{ member.text }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Due Date -->
+                    <div class="mb-3">
+                        <label for="taskDueDate" class="form-label">到期日<span class="text-danger">*</span></label>
+                        <input type="date"
+                               class="form-control"
+                               id="taskDueDate"
+                               v-model="taskForm.dueDate"
+                               :min="formatDate(new Date())"
+                               required>
+                        <div class="invalid-feedback">
+                            請選擇到期日
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal">
+                    取消
+                </button>
+                <button type="button"
+                        class="btn btn-primary"
+                        id="saveTaskBtn">
+                    建立任務
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
