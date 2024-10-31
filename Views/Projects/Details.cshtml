@@ -7,40 +7,41 @@
 
 @section Styles {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <style>
-        [v-cloak] {
-            display: none;
-        }
-
-        /* Modal 相關樣式 */
-        .form-control:focus,
-        .form-select:focus {
-            border-color: #86b7fe;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-        }
-
-        .was-validated .form-control:invalid:focus,
-        .was-validated .form-select:invalid:focus {
-            border-color: #dc3545;
-            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
-        }
-
-        .was-validated .form-control:valid:focus,
-        .was-validated .form-select:valid:focus {
-            border-color: #198754;
-            box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
-        }
-
-        /* Modal 過渡動畫 */
-        .modal.fade .modal-dialog {
-            transition: transform 0.3s ease-out;
-        }
-
-        .modal.fade.show .modal-dialog {
-            transform: none;
-        }
-    </style>
 }
+
+<style>
+    [v-cloak] {
+        display: none;
+    }
+
+    /* Modal 相關樣式 */
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    .was-validated .form-control:invalid:focus,
+    .was-validated .form-select:invalid:focus {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+    }
+
+    .was-validated .form-control:valid:focus,
+    .was-validated .form-select:valid:focus {
+        border-color: #198754;
+        box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+    }
+
+    /* Modal 過渡動畫 */
+    .modal.fade .modal-dialog {
+        transition: transform 0.3s ease-out;
+    }
+
+    .modal.fade.show .modal-dialog {
+        transform: none;
+    }
+</style>
 
 <div class="container" id="app" v-cloak>
     <!-- 載入指示器 -->
@@ -154,7 +155,7 @@
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
         const { createApp } = Vue;
@@ -175,10 +176,6 @@
                     },
                     projectManagers: @Html.Raw(Json.Serialize(Model.ProjectManagers ?? new List<SelectListItem>())),
                     statusOptions: @Html.Raw(Json.Serialize(Model.StatusOptions ?? new List<SelectListItem>())),
-                    loading: true,
-                    error: null,
-                    editModal: null,
-
                     taskForm: {
                         title: '',
                         description: '',
@@ -302,7 +299,7 @@
                                 ownerId: updatedProject.ownerId.toString(),
                                 startDate: this.formatDate(updatedProject.startDate),
                                 endDate: updatedProject.endDate ? this.formatDate(updatedProject.endDate) : '',
-                                tasks: currentTasks 
+                                tasks: currentTasks
                             };
                         } else {
                             await this.loadProject();
@@ -391,7 +388,7 @@
                         modal.addEventListener('hidden.bs.modal', () => this.resetFormValidation());
                     }
                 },
-            
+
                 initializeTaskModalEventListeners() {
                     // 初始化 Modal
                     if (!this.taskCreateModal) {
@@ -453,15 +450,15 @@
                         saveBtn.innerHTML = '建立任務';
                     }
                 },
-            mounted() 
-            {
-                this.loadProject().then(() => {
-                    this.$nextTick(() => {
-                        this.initializeEventListeners();
-                        console.log('Component mounted, current project manager:', this.project.ownerId);
-                        this.initializeTaskModalEventListeners(); 
+                mounted() {
+                    this.loadProject().then(() => {
+                        this.$nextTick(() => {
+                            this.initializeEventListeners();
+                            console.log('Component mounted, current project manager:', this.project.ownerId);
+                            this.initializeTaskModalEventListeners();
+                        });
                     });
-                });
+                }
             }
         }).mount('#app');
     </script>

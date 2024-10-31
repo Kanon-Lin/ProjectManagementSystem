@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc.Rendering;
-using ProjectTask = ProjectManagementSystem.Models.EFModels.Task;  // 為 Task 類型定義別名
 using System.Collections.Generic;
-using ProjectManagementSystem.Models.EFModels;  
+using ProjectManagementSystem.Models.EFModels;
+using ProjectManagementSystem.Models.Dtos;
 
 
 namespace ProjectManagementSystem.Models.ViewModels
@@ -18,7 +18,7 @@ namespace ProjectManagementSystem.Models.ViewModels
         public string OwnerName { get; set; }
 
         // 任務列表(使用別名並using)
-        public ICollection<ProjectTask> Tasks { get; set; } = new List<ProjectTask>();
+        public List<TaskDto> Tasks { get; set; } = new List<TaskDto>();
 
         // 用於編輯時的下拉選單
         public List<SelectListItem> ProjectManagers { get; set; }

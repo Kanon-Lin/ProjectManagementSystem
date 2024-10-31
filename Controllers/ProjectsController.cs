@@ -4,8 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using ProjectManagementSystem.Models.EFModels;
 using ProjectManagementSystem.Models.ViewModels;
 using System.Diagnostics;
-using ProjectTask = ProjectManagementSystem.Models.EFModels.Task;  // 加入 Task 別名
 using System.Threading.Tasks;
+using ProjectManagementSystem.Models.Dtos;
 
 namespace ProjectManagementSystem.Controllers
 {
@@ -125,13 +125,10 @@ namespace ProjectManagementSystem.Controllers
             var project = await _context.Projects
                 .Include(p => p.Owner)
                 .Include(p => p.Tasks)
-                    .ThenInclude(t => t.AssignedTo)  // 包含分配給的團隊成員資訊
+                    .ThenInclude(t => t.AssignedTo)
                 .FirstOrDefaultAsync(p => p.ProjectId == id);
 
-            if (project == null)
-            {
-                return NotFound();
-            }
+            if (project == null) return NotFound();
 
             var viewModel = new ProjectDetailsVm
             {
@@ -143,7 +140,17 @@ namespace ProjectManagementSystem.Controllers
                 EndDate = project.EndDate,
                 OwnerId = project.OwnerId,
                 OwnerName = project.Owner?.Name,
-                Tasks = project.Tasks?.ToList() ?? new List<ProjectTask>(),  // 使用 ProjectTask 別名
+                Tasks = project.Tasks?.Select(t => new TaskDto
+                {
+                    TaskId = t.TaskId,
+                    Title = t.Title,
+                    Description = t.Description,
+                    Status = t.Status,
+                    DueDate = t.DueDate,
+                    Priority = t.Priority,
+                    AssignedToId = t.AssignedToId,
+                    AssignedToName = t.AssignedTo?.Name
+                }).ToList() ?? new List<TaskDto>(),
 
                 ProjectManagers = await _context.ProjectManagers
                     .Select(pm => new SelectListItem
@@ -155,11 +162,36 @@ namespace ProjectManagementSystem.Controllers
                     .ToListAsync(),
 
                 StatusOptions = new List<SelectListItem>
+        {
+            new SelectListItem { Value = "Not Started", Text = "Not Started" },
+            new SelectListItem { Value = "In Progress", Text = "In Progress" },
+            new SelectListItem { Value = "Completed", Text = "Completed" },
+            new SelectListItem { Value = "Cancelled", Text = "Cancelled" }
+        },
+
+                // 添加 TaskCreateVm 初始化
+                TaskCreateVm = new TaskCreateVm
                 {
-                    new SelectListItem { Value = "Not Started", Text = "Not Started" },
-                    new SelectListItem { Value = "In Progress", Text = "In Progress" },
-                    new SelectListItem { Value = "Completed", Text = "Completed" },
-                    new SelectListItem { Value = "Cancelled", Text = "Cancelled" }
+                    ProjectId = id,
+                    TeamMembers = await _context.TeamMembers
+                        .Select(m => new SelectListItem
+                        {
+                            Value = m.MemberId.ToString(),
+                            Text = m.Name
+                        })
+                        .ToListAsync(),
+                    Statuses = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "Not Started", Text = "Not Started" },
+                new SelectListItem { Value = "In Progress", Text = "In Progress" },
+                new SelectListItem { Value = "Completed", Text = "Completed" }
+            },
+                    Priorities = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "High", Text = "High" },
+                new SelectListItem { Value = "Medium", Text = "Medium" },
+                new SelectListItem { Value = "Low", Text = "Low" }
+            }
                 }
             };
 

@@ -8,5 +8,6 @@
         public DateTime DueDate { get; set; }
         public string Priority { get; set; }
         public int AssignedToId { get; set; }
+        public int ProjectId { get; set; }
     }
 }

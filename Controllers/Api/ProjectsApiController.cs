@@ -41,22 +41,24 @@ namespace ProjectManagementSystem.Controllers.Api
             return new ProjectDetailsDto
             {
                 ProjectId = project.ProjectId,
-                Name = project.Name,
-                Description = project.Description,
-                Status = project.Status,
+                Name = project.Name ?? string.Empty,
+                Description = project.Description ?? string.Empty,
+                Status = project.Status ?? string.Empty,
                 StartDate = project.StartDate,
                 EndDate = project.EndDate,
-                OwnerName = project.Owner.Name,
+                OwnerId = project.OwnerId,
+                OwnerName = project.Owner?.Name ?? string.Empty,
                 Tasks = project.Tasks.Select(t => new TaskDto
                 {
                     TaskId = t.TaskId,
-                    Title = t.Title,
-                    Description = t.Description,
-                    Status = t.Status,
+                    Title = t.Title ?? string.Empty,
+                    Description = t.Description ?? string.Empty,
+                    Status = t.Status ?? string.Empty,
                     DueDate = t.DueDate,
-                    Priority = t.Priority,
-                    AssignedToName = t.AssignedTo?.Name
-                }).ToList()
+                    Priority = t.Priority ?? string.Empty,
+                    AssignedToId = t.AssignedToId,
+                    AssignedToName = t.AssignedTo?.Name ?? string.Empty
+                }).ToList() ?? new List<TaskDto>()
             };
         }
 
