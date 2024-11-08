@@ -141,7 +141,6 @@ public partial class AppDbContext : DbContext
 
             entity.HasOne(d => d.AssignedTo).WithMany(p => p.Tasks)
                 .HasForeignKey(d => d.AssignedToId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Tasks__AssignedT__412EB0B6");
 
             entity.HasOne(d => d.Project).WithMany(p => p.Tasks)

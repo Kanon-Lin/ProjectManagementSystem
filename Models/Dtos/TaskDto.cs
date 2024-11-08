@@ -10,6 +10,7 @@
         public string Priority { get; set; }
         public string AssignedToName { get; set; }
         public int AssignedToId { get; set; }
+        public int ProjectId { get; set; }
 
     }
 }

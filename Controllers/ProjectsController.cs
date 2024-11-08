@@ -57,7 +57,7 @@ namespace ProjectManagementSystem.Controllers
                 "Name"
             );
 
-            ViewBag.StatusOptions = new List<string> { "Not Started", "In Progress", "Completed", "Terminated", "Cancelled" };
+            ViewBag.StatusOptions = new List<string> { "未開始", "進行中", "已完成", "已終止", "已取消" };
 
             return View(model);
         }
@@ -110,11 +110,11 @@ namespace ProjectManagementSystem.Controllers
 
             ViewBag.StatusOptions = new List<string>
         {
-            "Not Started",
-            "In Progress",
-            "Completed",
-            "Terminated",
-            "Cancelled"
+            "未開始",
+            "進行中",
+            "已完成",
+            "已終止",
+            "已取消"
         };
 
             return View(vm);
@@ -148,7 +148,7 @@ namespace ProjectManagementSystem.Controllers
                     Status = t.Status,
                     DueDate = t.DueDate,
                     Priority = t.Priority,
-                    AssignedToId = t.AssignedToId,
+                    AssignedToId = t.AssignedToId ?? 0,
                     AssignedToName = t.AssignedTo?.Name
                 }).ToList() ?? new List<TaskDto>(),
 
@@ -163,10 +163,10 @@ namespace ProjectManagementSystem.Controllers
 
                 StatusOptions = new List<SelectListItem>
         {
-            new SelectListItem { Value = "Not Started", Text = "Not Started" },
-            new SelectListItem { Value = "In Progress", Text = "In Progress" },
-            new SelectListItem { Value = "Completed", Text = "Completed" },
-            new SelectListItem { Value = "Cancelled", Text = "Cancelled" }
+           new SelectListItem { Value = "未開始", Text = "未開始" },
+        new SelectListItem { Value = "進行中", Text = "進行中" },
+        new SelectListItem { Value = "已完成", Text = "已完成" },
+        new SelectListItem { Value = "已取消", Text = "已取消" }
         },
 
                 // 添加 TaskCreateVm 初始化
@@ -182,15 +182,15 @@ namespace ProjectManagementSystem.Controllers
                         .ToListAsync(),
                     Statuses = new List<SelectListItem>
             {
-                new SelectListItem { Value = "Not Started", Text = "Not Started" },
-                new SelectListItem { Value = "In Progress", Text = "In Progress" },
-                new SelectListItem { Value = "Completed", Text = "Completed" }
+                new SelectListItem { Value = "未開始", Text = "未開始" },
+                new SelectListItem { Value = "進行中", Text = "進行中" },
+                new SelectListItem { Value = "已完成", Text = "已完成" }
             },
                     Priorities = new List<SelectListItem>
             {
-                new SelectListItem { Value = "High", Text = "High" },
-                new SelectListItem { Value = "Medium", Text = "Medium" },
-                new SelectListItem { Value = "Low", Text = "Low" }
+               new SelectListItem { Value = "高", Text = "高" },
+            new SelectListItem { Value = "中", Text = "中" },
+            new SelectListItem { Value = "低", Text = "低" }
             }
                 }
             };

@@ -22,7 +22,8 @@ namespace ProjectManagementSystem.Models.ViewModels
 
         // 用於編輯時的下拉選單
         public List<SelectListItem> ProjectManagers { get; set; }
-        public List<SelectListItem> StatusOptions { get; set; }
+
+        public List<SelectListItem> StatusOptions { get; set; } 
 
         public TaskCreateVm TaskCreateVm { get; set; }
 

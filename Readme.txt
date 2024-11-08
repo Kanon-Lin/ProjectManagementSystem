@@ -21,3 +21,18 @@
 
 [bug] 新增任務  動了 api控制器 detail.cshtml(動最多) Model.TaskCreateVm taskCreateModal
 [yet] 編輯/刪除任務
+
+1104
+[done] 新增任務
+[yet] 編輯/刪除任務
+
+1106
+[done] 刪除任務
+[yet] 編輯任務 前端按鈕還未綁
+
+1108
+[done] 編輯任務
+[done] 成員管理 CRUD
+
+[yet] 文件管理模組
+

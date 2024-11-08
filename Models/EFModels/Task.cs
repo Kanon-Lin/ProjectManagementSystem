@@ -15,7 +15,7 @@ public partial class Task
 
     public string Status { get; set; }
 
-    public int AssignedToId { get; set; }
+    public int? AssignedToId { get; set; }
 
     public int ProjectId { get; set; }
 

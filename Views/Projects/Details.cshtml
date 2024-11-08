@@ -88,7 +88,6 @@
                 <dd class="col-sm-9">{{formatDate(project.startDate)}}</dd>
 
                 <dt class="col-sm-3">End Date</dt>
-                <!-- 修改處 1: 改變結束日期的顯示邏輯 -->
                 <dd class="col-sm-9">{{ project.endDate ? formatDate(project.endDate) : 'Not Set' }}</dd>
             </dl>
         </div>
@@ -128,10 +127,12 @@
                                 {{task.priority}}
                             </span>
                         </td>
-                        <td>{{task.assignedToName || 'Unassigned'}}</td>
+                        <td>{{task.assignedToName || ''}}</td>
                         <td>
                             <div class="btn-group">
-                                <button class="btn btn-sm btn-info edit-task-btn" :data-task-id="task.taskId">
+                                <button class="btn btn-sm btn-info edit-task-btn" 
+                                        :data-task-id="task.taskId"
+                                        :disabled="isSubmitting">
                                     <i class="bi bi-pencil"></i>
                                 </button>
                                 <button class="btn btn-sm btn-danger delete-task-btn" :data-task-id="task.taskId">
@@ -151,6 +152,9 @@
 
     <!-- 引入創建任務 Modal -->
     <partial name="_TaskCreateModal" model="Model" />
+
+    <!-- 引入編輯任務 Modal -->
+    <partial name="_TaskEditModal" model="Model" />
 </div>
 
 @section Scripts {
@@ -162,6 +166,7 @@
 
         createApp({
             data() {
+                const today = new Date().toISOString().split('T')[0];
                 return {
                     project: {
                         projectId: @Model.ProjectId,
@@ -179,13 +184,22 @@
                     taskForm: {
                         title: '',
                         description: '',
-                        status: '',
+                        status: '未開始',
                         priority: '',
-                        dueDate: new Date().toISOString().split('T')[0],
+                        dueDate: today,
                         assignedToId: '',
                         projectId: @Model.ProjectId
                     },
-                    // 使用 TaskCreateVm 中的選項
+                    editTaskForm: {
+                        taskId: null,
+                        title: '',
+                        description: '',
+                        status: '',
+                        priority: '',
+                        dueDate: '',
+                        assignedToId: null
+                    },
+                    taskEditModal: null,
                     taskStatusOptions: @Html.Raw(Json.Serialize(Model.TaskCreateVm.Statuses ?? new List<SelectListItem>())),
                     taskPriorityOptions: @Html.Raw(Json.Serialize(Model.TaskCreateVm.Priorities ?? new List<SelectListItem>())),
                     teamMembers: @Html.Raw(Json.Serialize(Model.TaskCreateVm.TeamMembers ?? new List<SelectListItem>())),
@@ -193,10 +207,15 @@
                     error: null,
                     editModal: null,
                     taskCreateModal: null,
-                    isSubmitting: false
+                    isSubmitting: false,
+                    validationRules: {
+                        statuses: ['未開始', '進行中', '已完成'],
+                        priorities: ['高', '中', '低']
+                    }
                 }
             },
             methods: {
+                //公共工具methods
                 formatDate(date) {
                     if (!date) return 'Not Set';
 
@@ -214,39 +233,154 @@
                     }
                 },
 
-                validateForm() {
-                    const form = document.getElementById('projectEditForm');
-                    if (!form.checkValidity()) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        form.classList.add('was-validated');
-                        return false;
-                    }
-                    return true;
+                getStatusColor(status) {
+                    const colors = {
+                        '未開始': 'secondary',
+                        '進行中': 'primary',
+                        '已完成': 'success',
+                        '已取消': 'danger'
+                    };
+                    return colors[status] || 'info';
                 },
 
-                validateDates() {
-                    if (!this.project.endDate || this.project.endDate === 'Not Set') {
-                        return true;
-                    }
-
-                    const startDate = new Date(this.project.startDate);
-                    const endDate = new Date(this.project.endDate);
-
-                    if (endDate < startDate) {
-                        document.getElementById('endDate').setCustomValidity('End date must be after start date');
-                        return false;
-                    }
-
-                    document.getElementById('endDate').setCustomValidity('');
-                    return true;
+                getPriorityColor(priority) {
+                    const colors = {
+                        '高': 'danger',
+                        '中': 'warning',
+                        '低': 'info'
+                    };
+                    return colors[priority] || 'secondary';
                 },
 
-                resetFormValidation() {
-                    const form = document.getElementById('projectEditForm');
-                    form.classList.remove('was-validated');
-                    const inputs = form.querySelectorAll('input, select, textarea');
-                    inputs.forEach(input => input.setCustomValidity(''));
+                //事件初始化
+                initializeAllEventListeners() {
+                    console.log('Initializing all event listeners');
+
+                    // 初始化編輯專案相關事件
+                    if (!this.editModal) {
+                        this.editModal = new bootstrap.Modal(document.getElementById('projectEditModal'));
+                    }
+
+                    // 初始化任務 Modal
+                    if (!this.taskCreateModal) {
+                        this.taskCreateModal = new bootstrap.Modal(document.getElementById('taskCreateModal'));
+                    }
+
+                    // 綁定編輯專案按鈕
+                    const editBtn = document.getElementById('editProjectBtn');
+                    if (editBtn) {
+                        editBtn.removeEventListener('click', this.showEditModal);
+                        editBtn.addEventListener('click', () => this.showEditModal());
+                    }
+
+                    // 綁定儲存專案按鈕
+                    const saveBtn = document.getElementById('saveProjectBtn');
+                    if (saveBtn) {
+                        saveBtn.removeEventListener('click', this.handleSave);
+                        saveBtn.addEventListener('click', () => this.handleSave());
+                    }
+
+                    // 綁定專案 Modal 關閉事件
+                    const projectModal = document.getElementById('projectEditModal');
+                    if (projectModal) {
+                        projectModal.removeEventListener('hidden.bs.modal', this.resetFormValidation);
+                        projectModal.addEventListener('hidden.bs.modal', () => this.resetFormValidation());
+                    }
+
+                    // 綁定新增任務按鈕
+                    const addTaskBtn = document.getElementById('addTaskBtn');
+                    if (addTaskBtn) {
+                        addTaskBtn.removeEventListener('click', this.showCreateTaskModal);
+                        addTaskBtn.addEventListener('click', () => this.showCreateTaskModal());
+                    }
+
+                    // 綁定儲存任務按鈕
+                    const saveTaskBtn = document.getElementById('saveTaskBtn');
+                    if (saveTaskBtn) {
+                        saveTaskBtn.removeEventListener('click', this.handleSaveTask);
+                        saveTaskBtn.addEventListener('click', () => this.handleSaveTask());
+                    }
+
+                    // 綁定任務 Modal 關閉事件
+                    const taskModal = document.getElementById('taskCreateModal');
+                    if (taskModal) {
+                        taskModal.removeEventListener('hidden.bs.modal', this.resetTaskForm);
+                        taskModal.addEventListener('hidden.bs.modal', () => this.resetTaskForm());
+                    }
+
+                    // 綁定所有刪除按鈕
+                    const deleteButtons = document.querySelectorAll('.delete-task-btn');
+                    if (deleteButtons) {
+                        deleteButtons.forEach(btn => {
+                            btn.removeEventListener('click', this.handleDeleteClick);
+                            btn.addEventListener('click', () => this.handleDeleteClick(btn));
+                        });
+                    }
+
+                    // 初始化編輯任務 Modal
+                    if (!this.taskEditModal) {
+                        this.taskEditModal = new bootstrap.Modal(document.getElementById('taskEditModal'));
+                    }
+
+                    // 綁定所有編輯按鈕
+                    const editButtons = document.querySelectorAll('.edit-task-btn');
+                    if (editButtons) {
+                        editButtons.forEach(btn => {
+                            btn.removeEventListener('click', this.handleEditClick);
+                            btn.addEventListener('click', () => {
+                                const taskId = parseInt(btn.dataset.taskId);
+                                this.handleEditClick(taskId);
+                            });
+                        });
+                    }
+
+                    // 綁定更新任務按鈕
+                    const updateTaskBtn = document.getElementById('updateTaskBtn');
+                    if (updateTaskBtn) {
+                        updateTaskBtn.removeEventListener('click', this.updateTask);
+                        updateTaskBtn.addEventListener('click', () => this.updateTask());
+                    }
+
+                    // 綁定編輯任務 Modal 關閉事件
+                    const taskEditModal = document.getElementById('taskEditModal');
+                    if (taskEditModal) {
+                        taskEditModal.removeEventListener('hidden.bs.modal', this.resetEditTaskForm);
+                        taskEditModal.addEventListener('hidden.bs.modal', () => this.resetEditTaskForm());
+                    }
+                },
+
+                //專案相關methods
+                async loadProject() {
+                    try {
+                        this.loading = true;
+                        console.log('Loading project ID:', this.project.projectId);
+
+                        const response = await axios.get(`/api/ProjectsApi/${this.project.projectId}`);
+                        console.log('API Response:', response.data);
+
+                        const updatedProject = response.data;
+
+                        this.project = {
+                            ...this.project,
+                            ...updatedProject,
+                            ownerId: updatedProject.ownerId.toString(),
+                            startDate: this.formatDate(updatedProject.startDate),
+                            endDate: updatedProject.endDate ? this.formatDate(updatedProject.endDate) : '',
+                            tasks: updatedProject.tasks || []
+                        };
+
+                        // 在數據更新後，確保 DOM 更新完成再初始化事件
+                        this.$nextTick(() => {
+                            this.initializeAllEventListeners();
+                        });
+
+                        this.error = null;
+                    } catch (error) {
+                        console.error('Error loading project:', error);
+                        this.error = `Failed to load project: ${error.response?.data || error.message}`;
+                    } finally {
+                        this.loading = false;
+                    }
                 },
 
                 showEditModal() {
@@ -313,108 +447,65 @@
                     }
                 },
 
-                async loadProject() {
-                    try {
-                        this.loading = true;
-                        console.log('Loading project ID:', this.project.projectId);
-
-                        const response = await axios.get(`/api/ProjectsApi/${this.project.projectId}`);
-                        console.log('API Response:', response.data);
-
-                        const updatedProject = response.data;
-                        const currentTasks = this.project.tasks;
-
-                        this.project = {
-                            ...this.project,
-                            ...updatedProject,
-                            ownerId: updatedProject.ownerId.toString(),
-                            startDate: this.formatDate(updatedProject.startDate),
-                            endDate: updatedProject.endDate ? this.formatDate(updatedProject.endDate) : '',
-                            tasks: updatedProject.tasks || currentTasks
-                        };
-
-                        console.log('Updated project data:', this.project);
-                        console.log('Project Manager ID:', this.project.ownerId);
-                        console.log('Available Project Managers:', this.projectManagers);
-
-                        this.error = null;
-                    } catch (error) {
-                        console.error('Error loading project:', error);
-                        this.error = `Failed to load project: ${error.response?.data || error.message}`;
-                    } finally {
-                        this.loading = false;
+                validateForm() {
+                    const form = document.getElementById('projectEditForm');
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        form.classList.add('was-validated');
+                        return false;
                     }
+                    return true;
                 },
 
-                getStatusColor(status) {
-                    const colors = {
-                        'Not Started': 'secondary',
-                        'In Progress': 'primary',
-                        'Completed': 'success',
-                        'Cancelled': 'danger'
-                    };
-                    return colors[status] || 'info';
+                validateDates() {
+                    if (!this.project.endDate || this.project.endDate === 'Not Set') {
+                        return true;
+                    }
+
+                    const startDate = new Date(this.project.startDate);
+                    const endDate = new Date(this.project.endDate);
+
+                    if (endDate < startDate) {
+                        document.getElementById('endDate').setCustomValidity('End date must be after start date');
+                        return false;
+                    }
+
+                    document.getElementById('endDate').setCustomValidity('');
+                    return true;
                 },
 
-                getPriorityColor(priority) {
-                    const colors = {
-                        'High': 'danger',
-                        'Medium': 'warning',
-                        'Low': 'info'
-                    };
-                    return colors[priority] || 'secondary';
+                resetFormValidation() {
+                    const form = document.getElementById('projectEditForm');
+                    form.classList.remove('was-validated');
+                    const inputs = form.querySelectorAll('input, select, textarea');
+                    inputs.forEach(input => input.setCustomValidity(''));
                 },
 
-                initializeEventListeners() {
-                    if (!this.editModal) {
-                        this.editModal = new bootstrap.Modal(document.getElementById('projectEditModal'));
-                    }
-
-                    const editBtn = document.getElementById('editProjectBtn');
-                    if (editBtn) {
-                        editBtn.removeEventListener('click', this.showEditModal);
-                        editBtn.addEventListener('click', () => this.showEditModal());
-                    }
-
-                    const saveBtn = document.getElementById('saveProjectBtn');
-                    if (saveBtn) {
-                        saveBtn.removeEventListener('click', this.handleSave);
-                        saveBtn.addEventListener('click', () => this.handleSave());
-                    }
-
-                    const modal = document.getElementById('projectEditModal');
-                    if (modal) {
-                        modal.removeEventListener('hidden.bs.modal', this.resetFormValidation);
-                        modal.addEventListener('hidden.bs.modal', () => this.resetFormValidation());
-                    }
-                },
-
-                initializeTaskModalEventListeners() {
-                    // 初始化 Modal
-                    if (!this.taskCreateModal) {
+                //任務相關methods
+                async showCreateTaskModal() {
+                    if (!this.taskCreateModal) {      //初始化
                         this.taskCreateModal = new bootstrap.Modal(document.getElementById('taskCreateModal'));
                     }
-
-                    // Add Task 按鈕
-                    const addTaskBtn = document.getElementById('addTaskBtn');
-                    if (addTaskBtn) {
-                        addTaskBtn.removeEventListener('click', this.showCreateTaskModal);
-                        addTaskBtn.addEventListener('click', () => this.showCreateTaskModal());
+                    //重置表單
+                    this.taskForm = {
+                        title: '',
+                        description: '',
+                        status: '未開始',  // 給預設值
+                        priority: '',
+                        dueDate: new Date().toISOString().split('T')[0],
+                        assignedToId: null,
+                        projectId: this.project.projectId
+                    };
+                    //清除之前的驗證
+                    const form = document.getElementById('taskCreateForm');
+                    if (form) {
+                        form.classList.remove('was-validateed');
+                        const inputs = form.querySelectorAll('input, select, textarea');
+                        inputs.forEach(input => input.setCustomValidity(''));
                     }
-
-                    // Save Task 按鈕
-                    const saveTaskBtn = document.getElementById('saveTaskBtn');
-                    if (saveTaskBtn) {
-                        saveTaskBtn.removeEventListener('click', this.handleSaveTask);
-                        saveTaskBtn.addEventListener('click', () => this.handleSaveTask());
-                    }
-
-                    // Modal 關閉事件
-                    const taskModal = document.getElementById('taskCreateModal');
-                    if (taskModal) {
-                        taskModal.removeEventListener('hidden.bs.modal', this.resetTaskForm);
-                        taskModal.addEventListener('hidden.bs.modal', () => this.resetTaskForm());
-                    }
+                    //打開 Modal
+                    this.taskCreateModal.show();
                 },
 
                 handleSaveTask() {
@@ -422,18 +513,133 @@
                     this.createTask();
                 },
 
+                handleEditClick(taskId) {
+                    const task = this.project.tasks.find(t => t.taskId === taskId);
+                    if (task) {
+                        // 重置表單驗證狀態
+                        const form = document.getElementById('taskEditForm');
+                        form.classList.remove('was-validated');
+                        form.querySelectorAll('input, select, textarea').forEach(input => {
+                            input.setCustomValidity('');
+                        });
+                        const dueDate = task.dueDate
+                            ? new Date(task.dueDate).toISOString().split('T')[0]
+                            : '';
+
+                        // 設置表單數據
+                        this.editTaskForm = {
+                            taskId: task.taskId,
+                            title: task.title,
+                            description: task.description,
+                            status: task.status,
+                            priority: task.priority,
+                            dueDate: dueDate,
+                            assignedToId: task.assignedToId ? task.assignedToId.toString() : ''
+                        };
+
+                        console.log('Edit form data:', this.editTaskForm);  // 記錄表單資料
+                        this.taskEditModal.show();
+                    }
+                },
+
+                validateTaskForm(isEdit = false) {
+                    const formId = isEdit ? 'taskEditForm' : 'taskCreateForm';
+                    const form = document.getElementById(formId);
+                    const formData = isEdit ? this.editTaskForm : this.taskForm;
+                    const errors = {};
+
+                    // 驗證標題
+                    if (!formData.title?.trim()) {
+                        errors.title = '標題不能為空';
+                    }
+
+                    // 驗證狀態
+                    if (!formData.status) {
+                        errors.status = '狀態不能為空';
+                    } else if (!this.validationRules.statuses.includes(formData.status)) {
+                        errors.status = '請選擇有效的狀態';
+                    }
+
+                    // 驗證優先級
+                    if (!formData.priority) {
+                        errors.priority = '優先級不能為空';
+                    } else if (!this.validationRules.priorities.includes(formData.priority)) {
+                        errors.priority = '請選擇有效的優先級';
+                    }
+
+                    // 驗證到期日 - 只檢查是否有值，不檢查日期範圍
+                    if (!formData.dueDate) {
+                        errors.dueDate = '到期日不能為空';
+                    }
+
+                    // 設置錯誤提示
+                    Object.keys(errors).forEach(field => {
+                        const prefix = isEdit ? 'editTask' : 'task';
+                        const element = document.getElementById(`${prefix}${field.charAt(0).toUpperCase() + field.slice(1)}`);
+                        if (element) {
+                            element.setCustomValidity(errors[field]);
+                        }
+                    });
+
+                    // 顯示驗證狀態
+                    form.classList.add('was-validated');
+
+                    // 添加輸入監聽（只添加一次）
+                    if (!form.hasInputListeners) {
+                        form.querySelectorAll('input, select, textarea').forEach(input => {
+                            input.addEventListener('input', () => {
+                                // 清除驗證訊息
+                                input.setCustomValidity('');
+
+                                // 特別處理標題輸入框
+                                if (input.id === 'taskTitle' || input.id === 'editTaskTitle') {
+                                    input.setCustomValidity('');
+                                }
+                            });
+                        });
+                        form.hasInputListeners = true;
+                    }
+
+                    return Object.keys(errors).length === 0;
+                },
+
                 async createTask() {
-                    if (!this.validateTaskForm()) return;
+                    if (!this.validateTaskForm(false)) return;
 
                     try {
                         this.isSubmitting = true;
                         const saveBtn = document.getElementById('saveTaskBtn');
-                        const originalContent = saveBtn.innerHTML;
                         saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>建立中...';
+                        
+                        // 確保日期格式正確
+                        let formattedDate = this.taskForm.dueDate;
+                        if (formattedDate) {
+                            // 確保日期格式是 ISO 字串並且是此時區
+                            const date = new Date(formattedDate);
+                            if (!isNaN(date.getTime())) {
+                                const localDate = new Date(Date.UTC(
+                                    date.getFullYear(),
+                                    date.getMonth(),
+                                    date.getDate(),
+                                    0, 0, 0
+                                ));
+                                formattedDate = localDate.toISOString();
+                            }
+                        }
+                        const taskData = {
+                            title: this.taskForm.title.trim(),
+                            description: this.taskForm.description?.trim() || '',
+                            status: this.taskForm.status,
+                            priority: this.taskForm.priority,
+                            dueDate: formattedDate,
+                            assignedToId: this.taskForm.assignedToId ? parseInt(this.taskForm.assignedToId) : null
+                        };
+
+                        console.log('Sending task data:', taskData);
 
                         const response = await axios.post(
                             `/api/ProjectsApi/${this.project.projectId}/tasks`,
-                            this.taskForm
+                            taskData
                         );
 
                         if (response.data) {
@@ -443,23 +649,228 @@
                         }
                     } catch (error) {
                         console.error('Error creating task:', error);
-                        alert(error.response?.data?.errors || '建立任務時發生錯誤');
+                        let errorMessage = '建立任務時發生錯誤';
+
+                        if (error.response?.data) {
+                            const errorResponse = error.response.data;
+                            console.log('Error response:', errorResponse);
+
+                            // 檢查 errorResponse 的類型和內容
+                            if (typeof errorResponse === 'object') {
+                                if (errorResponse.message) {
+                                    // 使用 ErrorResponseDto 格式
+                                    errorMessage = errorResponse.message;
+
+                                    // 處理特定錯誤情況
+                                    if (typeof errorMessage === 'string' && errorMessage.indexOf('標題已存在') !== -1) {
+                                        // 標記標題欄位為無效
+                                        const titleInput = document.getElementById('taskTitle');
+                                        if (titleInput) {
+                                            titleInput.setCustomValidity('此任務標題已存在');
+                                            document.getElementById('taskCreateForm').classList.add('was-validated');
+                                        }
+                                    }
+                                }
+
+                                // 根據錯誤類型顯示適當訊息
+                                if (errorResponse.error) {
+                                    switch (errorResponse.error) {
+                                        case 'ValidationError':
+                                            // 使用已經設置的錯誤訊息
+                                            break;
+                                        case 'InvalidOperation':
+                                            errorMessage = '無法在目前的專案狀態下建立任務';
+                                            break;
+                                        case 'NotFound':
+                                            errorMessage = '找不到指定的專案';
+                                            break;
+                                        case 'InternalServerError':
+                                            errorMessage = '服務器發生錯誤，請稍後再試';
+                                            break;
+                                    }
+                                }
+                            } else if (typeof errorResponse === 'string') {
+                                errorMessage = errorResponse;
+                            }
+                        }
+
+                        alert(errorMessage);
+
+                        // 如果是標題重複的錯誤，保持表單開啟
+                        if (typeof errorMessage === 'string' && errorMessage.indexOf('標題已存在') === -1) {
+                            this.resetTaskForm();  // 其他錯誤則重置表單
+                        }
                     } finally {
                         this.isSubmitting = false;
                         const saveBtn = document.getElementById('saveTaskBtn');
                         saveBtn.innerHTML = '建立任務';
                     }
                 },
-                mounted() {
-                    this.loadProject().then(() => {
-                        this.$nextTick(() => {
-                            this.initializeEventListeners();
-                            console.log('Component mounted, current project manager:', this.project.ownerId);
-                            this.initializeTaskModalEventListeners();
-                        });
-                    });
-                }
+                async updateTask() {
+                    if (this.isSubmitting) return;
+
+                    if (!this.validateTaskForm(true)) {
+                        return;
+                    }
+
+                    try {
+                        this.isSubmitting = true;
+                        const updateBtn = document.getElementById('updateTaskBtn');
+                        updateBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>更新中...';
+
+                        // 確保日期格式正確
+                        let formattedDate = this.editTaskForm.dueDate;
+                        if (formattedDate) {
+                            // 確保日期格式是 ISO 字串並且是此時區
+                            const date = new Date(formattedDate);
+                            if (!isNaN(date.getTime())) {
+                                const localDate = new Date(Date.UTC(
+                                    date.getFullYear(),
+                                    date.getMonth(),
+                                    date.getDate(),
+                                    0, 0, 0
+                                ));
+                                formattedDate = localDate.toISOString();
+                            }
+                        }
+
+                        const taskData = {
+                            taskId: this.editTaskForm.taskId,  // 加入 taskId
+                            title: this.editTaskForm.title.trim(),
+                            description: this.editTaskForm.description?.trim() || '',
+                            status: this.editTaskForm.status,
+                            priority: this.editTaskForm.priority,
+                            dueDate: formattedDate,
+                            assignedToId: this.editTaskForm.assignedToId ? parseInt(this.editTaskForm.assignedToId) : null
+                        };
+
+                        console.log('Sending update data:', taskData);
+
+                        const response = await axios.put(
+                            `/api/ProjectsApi/${this.project.projectId}/tasks/${this.editTaskForm.taskId}`,
+                            taskData
+                        );
+
+                        if (response.data) {
+                            await this.loadProject();
+                            this.taskEditModal.hide();
+                            alert('任務更新成功');
+                        }
+                    } catch (error) {
+                        console.error('Error updating task:', error);
+                        let errorMessage = '更新任務時發生錯誤';
+
+                        if (error.response?.data) {
+                            const errorResponse = error.response.data;
+                            console.log('Error response:', errorResponse);
+
+                            if (errorResponse.message) {
+                                // 使用 ErrorResponseDto 的格式
+                                errorMessage = `${errorResponse.message} (錯誤代碼: ${errorResponse.statusCode})`;
+
+                                // 根據不同的錯誤類型顯示不同的訊息
+                                switch (errorResponse.error) {
+                                    case 'ValidationError':
+                                        // 處理驗證錯誤
+                                        break;
+                                    case 'NotFound':
+                                        errorMessage = '找不到要更新的任務';
+                                        break;
+                                    case 'InvalidOperation':
+                                        errorMessage = '無法執行此操作';
+                                        break;
+                                    case 'InternalServerError':
+                                        errorMessage = '服務器內部錯誤，請稍後再試';
+                                        break;
+                                }
+                            } else if (typeof errorResponse === 'string') {
+                                errorMessage = errorResponse;
+                            }
+                        }
+
+                        alert(errorMessage);
+                    } finally {
+                        this.isSubmitting = false;
+                        const updateBtn = document.getElementById('updateTaskBtn');
+                        updateBtn.innerHTML = '更新任務';
+                    }
+                },
+
+                resetTaskForm() {
+                    this.taskForm = {
+                        title: '',
+                        description: '',
+                        status: '',
+                        priority: '',
+                        dueDate: this.formatDate(new Date()),
+                        assignedToId: '',
+                        projectId: this.project.projectId
+                    };
+
+                    const form = document.getElementById('taskCreateForm');
+                    if (form) {
+                        form.classList.remove('was-validated');
+                        const inputs = form.querySelectorAll('input, select, textarea');
+                        inputs.forEach(input => input.setCustomValidity(''));
+                    }
+                },
+
+                resetEditTaskForm() {
+                    this.editTaskForm = {
+                        taskId: null,
+                        title: '',
+                        description: '',
+                        status: '',
+                        priority: '',
+                        dueDate: '',
+                        assignedToId: null
+                    };
+
+                    const form = document.getElementById('taskEditForm');
+                    if (form) {
+                        form.classList.remove('was-validated');
+                        const inputs = form.querySelectorAll('input, select, textarea');
+                        inputs.forEach(input => input.setCustomValidity(''));
+                    }
+                },
+
+                //處理刪除鈕點擊
+                handleDeleteClick(btn) {
+                    const taskId = btn.dataset.taskId;
+                    if (taskId && confirm('確定要刪除此任務嗎？')) {
+                        this.deleteTask(taskId);
+                    }
+                },
+
+                async deleteTask(taskId) {
+                    try 
+                    {
+                        this.isSubmitting = true;
+                        const response = await axios.delete(
+                            `/api/ProjectsApi/${this.project.projectId}/tasks/${taskId}`);
+                        
+                        if (response.data.success) {
+                            await this.loadProject();
+                            alert('任務刪除成功');
+                        }
+                    } 
+                    catch (error) 
+                    {
+                        console.error('Error deleting task:', error);
+                        const errorMessage = error.response?.data?.message || '刪除任務時發生錯誤';
+                        alert(errorMessage);
+                    } 
+                    finally 
+                    {
+                        this.isSubmitting = false;
+                    }
+                },
+
+            },      
+
+            mounted() {     
+                this.loadProject();
             }
         }).mount('#app');
     </script>
-    }
+}

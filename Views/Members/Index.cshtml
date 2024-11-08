@@ -1,0 +1,163 @@
+﻿@model IEnumerable<ProjectManagementSystem.Models.ViewModels.MemberVm>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Members List</h2>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createMemberModal">
+        新增成員
+    </button>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>姓名</th>
+            <th>職位</th>
+            <th>Email</th>
+            <th>電話</th>
+            <th>創建時間</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Name</td>
+                <td>@item.Position</td>
+                <td>@item.Email</td>
+                <td>@item.Phone</td>
+                <td>@item.CreatedAt</td>
+                <td>
+                    <button type="button" class="btn btn-warning"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editMemberModal"
+                            data-id="@item.MemberId"
+                            data-name="@item.Name"
+                            data-position="@item.Position"
+                            data-email="@item.Email"
+                            data-phone="@item.Phone">
+                        編輯
+                    </button>
+                    <form asp-action="Delete" asp-route-id="@item.MemberId" method="post" style="display: inline;">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-danger"
+                                onclick="return confirm('確定要刪除此成員嗎？')">
+                            刪除
+                        </button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<!-- 新增成員 Modal -->
+<div class="modal fade" id="createMemberModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="Create" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title">新增成員</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-danger validation-summary"></div>
+                    <div class="mb-3">
+                        <label class="form-label">姓名</label>
+                        <input type="text" class="form-control" name="Name" required
+                               data-val="true" data-val-required="姓名是必填欄位">
+                        <span class="text-danger field-validation-valid" data-valmsg-for="Name"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">職位</label>
+                        <input type="text" class="form-control" name="Position" required
+                               data-val="true" data-val-required="職位是必填欄位">
+                        <span class="text-danger field-validation-valid" data-valmsg-for="Position"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="Email" required
+                               data-val="true" data-val-required="Email是必填欄位"
+                               data-val-email="請輸入有效的Email格式">
+                        <span class="text-danger field-validation-valid" data-valmsg-for="Email"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">電話</label>
+                        <input type="tel" class="form-control" name="Phone" required
+                               data-val="true" data-val-required="電話是必填欄位">
+                        <span class="text-danger field-validation-valid" data-valmsg-for="Phone"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">新增</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 編輯成員 Modal -->
+<div class="modal fade" id="editMemberModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="Edit" method="post">
+                <input type="hidden" name="MemberId" id="editMemberId">
+                <div class="modal-header">
+                    <h5 class="modal-title">編輯成員</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-danger validation-summary"></div>
+                    <div class="mb-3">
+                        <label class="form-label">姓名</label>
+                        <input type="text" class="form-control" name="Name" id="editName" required
+                               data-val="true" data-val-required="姓名是必填欄位">
+                        <span class="text-danger field-validation-valid" data-valmsg-for="Name"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">職位</label>
+                        <input type="text" class="form-control" name="Position" id="editPosition" required
+                               data-val="true" data-val-required="職位是必填欄位">
+                        <span class="text-danger field-validation-valid" data-valmsg-for="Position"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="Email" id="editEmail" required
+                               data-val="true" data-val-required="Email是必填欄位"
+                               data-val-email="請輸入有效的Email格式">
+                        <span class="text-danger field-validation-valid" data-valmsg-for="Email"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">電話</label>
+                        <input type="tel" class="form-control" name="Phone" id="editPhone" required
+                               data-val="true" data-val-required="電話是必填欄位">
+                        <span class="text-danger field-validation-valid" data-valmsg-for="Phone"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">更新</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+    <script>
+        // 處理編輯按鈕點擊事件
+        document.querySelectorAll('[data-bs-target="#editMemberModal"]').forEach(button => {
+            button.addEventListener('click', function () {
+                // 從按鈕的 data 屬性獲取資料
+                document.getElementById('editMemberId').value = this.dataset.id;
+                document.getElementById('editName').value = this.dataset.name;
+                document.getElementById('editPosition').value = this.dataset.position;
+                document.getElementById('editEmail').value = this.dataset.email;
+                document.getElementById('editPhone').value = this.dataset.phone;
+            });
+        });
+    </script>
+}

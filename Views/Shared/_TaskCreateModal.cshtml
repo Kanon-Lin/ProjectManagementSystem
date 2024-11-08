@@ -42,9 +42,9 @@
                                 v-model="taskForm.status"
                                 required>
                             <option value="">請選擇狀態</option>
-                            <option value="Not Started">未開始</option>
-                            <option value="In Progress">進行中</option>
-                            <option value="Completed">已完成</option>
+                            <option value="進行中">進行中</option>
+                            <option value="已完成">已完成</option>
+                            <option value="未開始">未開始</option>
                         </select>
                         <div class="invalid-feedback">
                             請選擇任務狀態
@@ -59,9 +59,9 @@
                                 v-model="taskForm.priority"
                                 required>
                             <option value="">請選擇優先級</option>
-                            <option value="High">高</option>
-                            <option value="Medium">中</option>
-                            <option value="Low">低</option>
+                            <option value="高">高</option>
+                            <option value="中">中</option>
+                            <option value="低">低</option>
                         </select>
                         <div class="invalid-feedback">
                             請選擇優先級
@@ -74,10 +74,10 @@
                         <select class="form-select"
                                 id="taskAssignedTo"
                                 v-model="taskForm.assignedToId">
-                            <option value="">未指派</option>
+                            <option :value="null">未指派</option>
                             <option v-for="member in teamMembers"
                                     :key="member.value"
-                                    :value="member.value">
+                                    :value="parseInt(member.value)">
                                 {{ member.text }}
                             </option>
                         </select>

@@ -1,59 +1,65 @@
+using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
+using ProjectManagementSystem.Models.Dtos;
 using ProjectManagementSystem.Models.EFModels;
+using ProjectManagementSystem.Repositories;
 using ProjectManagementSystem.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 資料庫連線設定
-string connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
-
-// 配置 Controllers 和相關服務
-builder.Services.AddControllersWithViews()
-    .AddNewtonsoftJson(options =>
-    {
-        options.SerializerSettings.ReferenceLoopHandling =
-            Newtonsoft.Json.ReferenceLoopHandling.Ignore;
-    })
-    .AddFluentValidation(fv =>
-    {
-        // 註冊 FluentValidation
-        fv.RegisterValidatorsFromAssemblyContaining<TaskCreateDtoValidator>();
-    });
-
-// API 文件相關
-builder.Services.AddEndpointsApiExplorer();
-
-// 日誌服務
-builder.Services.AddLogging(configure =>
+// 1. 基礎服務配置
+builder.Services.AddLogging(configure =>  // 移到最前面，因為其他服務可能需要用到日誌
 {
     configure.AddConsole();
     configure.AddDebug();
 });
 
+// 2. 資料庫服務
+string connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(connectionString));
+
+// 3. MVC和API相關服務
+builder.Services.AddControllersWithViews()
+    .AddNewtonsoftJson(options =>
+    {
+        options.SerializerSettings.ReferenceLoopHandling =
+            Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+    });
+
+// 4. API 文件服務
+builder.Services.AddEndpointsApiExplorer();
+
+// Task相關驗證器
+builder.Services.AddScoped<IValidator<TaskCreateDto>, TaskCreateDtoValidator>();
+builder.Services.AddScoped<IValidator<TaskUpdateDto>, TaskUpdateDtoValidator>();
+
+// Repository註冊
+builder.Services.AddScoped<IMemberRepository, MemberRepository>();
+
+
+// 5. 建立應用程式
 var app = builder.Build();
 
-// 環境相關配置
+// 6. 環境配置
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
 
-// Middleware 配置
-app.UseHttpsRedirection();
-app.UseStaticFiles();
-app.UseRouting();
-app.UseAuthorization();
+// 7. Middleware配置（順序很重要）
+app.UseHttpsRedirection();    // HTTPS 重定向
+app.UseStaticFiles();         // 靜態檔案
+app.UseRouting();            // 路由
+app.UseAuthorization();      // 授權
 
-// 路由配置
+// 8. 路由配置
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Projects}/{action=Index}/{id?}");
+app.MapControllers();  // API 路由
 
-// API 路由
-app.MapControllers();
-
+// 9. 啟動應用程式
 app.Run();
