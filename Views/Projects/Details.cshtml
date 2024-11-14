@@ -95,14 +95,31 @@
 
     <!-- 任務列表卡片 -->
     <div v-if="!loading && !error" class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h3 class="mb-0">Tasks</h3>
-            <button class="btn btn-success" id="addTaskBtn">
-                <i class="bi bi-plus"></i> Add Task
-            </button>
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Tasks</h3>
+                <button class="btn btn-success" id="addTaskBtn">
+                    <i class="bi bi-plus"></i> Add Task
+                </button>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <select class="form-select" v-model="filter.deadlineStatus">
+                        <option value="all">所有任務</option>
+                        <option value="upcoming">即將到期(3天內)</option>
+                        <option value="overdue">已逾期</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" v-model="filter.sortBy">
+                        <option value="dueDate">依到期日</option>
+                        <option value="priority">依優先度</option>
+                    </select>
+                </div>
+            </div>
         </div>
         <div class="card-body">
-            <table class="table" v-if="project.tasks && project.tasks.length">
+            <table class="table" v-if="filteredTasks.length">
                 <thead>
                     <tr>
                         <th>Title</th>
@@ -110,11 +127,14 @@
                         <th>Due Date</th>
                         <th>Priority</th>
                         <th>Assigned To</th>
+                        <th>Remaining Time</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="task in project.tasks" :key="task.taskId">
+                    <tr v-for="task in filteredTasks"
+                        :key="task.taskId"
+                        :class="getTaskRowClass(task)">
                         <td>{{task.title}}</td>
                         <td>
                             <span :class="'badge bg-' + getStatusColor(task.status)">
@@ -128,6 +148,12 @@
                             </span>
                         </td>
                         <td>{{task.assignedToName || ''}}</td>
+                        <td v-if="task.status !='已完成'">
+                            <span :class="{'text-danger': calculateDaysUntilDue(task.dueDate) < 0}">
+                                {{getDaysRemaining(task)}}
+                            </span>
+                        </td>
+                        <td v-else>-</td>
                         <td>
                             <div class="btn-group">
                                 <button class="btn btn-sm btn-info edit-task-btn" 
@@ -138,6 +164,11 @@
                                 <button class="btn btn-sm btn-danger delete-task-btn" :data-task-id="task.taskId">
                                     <i class="bi bi-trash"></i>
                                 </button>
+                                <a class="btn btn-sm btn-secondary" 
+                                   :href="'/File/Index?taskId=' + task.taskId"
+                                   title="檔案管理">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>
@@ -211,9 +242,39 @@
                     validationRules: {
                         statuses: ['未開始', '進行中', '已完成'],
                         priorities: ['高', '中', '低']
+                    },
+                    filter: {
+                        deadlineStatus: 'all',
+                        sortBy: 'dueDate'
                     }
                 }
             },
+            computed: {
+                filteredTasks() {
+                    if (!this.project.tasks) return [];
+
+                    return this.project.tasks
+                        .filter(task => {
+                            const daysUntilDue = this.calculateDaysUntilDue(task.dueDate);
+                            switch (this.filter.deadlineStatus) {
+                                case 'upcoming':
+                                    return daysUntilDue <= 3 && daysUntilDue >= 0 && task.status !== '已完成';
+                                case 'overdue':
+                                    return daysUntilDue < 0 && task.status !== '已完成';
+                                default:
+                                    return true;
+                            }
+                        })
+                        .sort((a, b) => {
+                            if (this.filter.sortBy === 'dueDate') {
+                                return new Date(a.dueDate) - new Date(b.dueDate);
+                            }
+                            const priorityValues = { '高': 3, '中': 2, '低': 1 };
+                            return priorityValues[b.priority] - priorityValues[a.priority];
+                        });
+                }
+            },
+
             methods: {
                 //公共工具methods
                 formatDate(date) {
@@ -706,6 +767,7 @@
                         saveBtn.innerHTML = '建立任務';
                     }
                 },
+
                 async updateTask() {
                     if (this.isSubmitting) return;
 
@@ -865,6 +927,28 @@
                         this.isSubmitting = false;
                     }
                 },
+
+                calculateDaysUntilDue(dueDate) {
+                    const today = new Date();
+                    const due = new Date(dueDate);
+                    today.setHours(0, 0, 0, 0);
+                    due.setHours(0, 0, 0, 0);
+                    return Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+                },
+
+                getDaysRemaining(task) {
+                    const days = this.calculateDaysUntilDue(task.dueDate);
+                    return days < 0 ? `逾期 ${Math.abs(days)} 天` : `剩餘 ${days} 天`;
+                },
+
+                getTaskRowClass(task) {
+                    if (task.status === '已完成') return '';
+                    const days = this.calculateDaysUntilDue(task.dueDate);
+                    return {
+                        'table-danger': days < 0,
+                        'table-warning': days >= 0 && days <= 3
+                    };
+                }
 
             },      
 

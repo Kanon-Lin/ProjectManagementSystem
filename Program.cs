@@ -1,9 +1,12 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
+using ProjectManagementSystem.BackgroundServices;
+using ProjectManagementSystem.Models;
 using ProjectManagementSystem.Models.Dtos;
 using ProjectManagementSystem.Models.EFModels;
 using ProjectManagementSystem.Repositories;
+using ProjectManagementSystem.Services;
 using ProjectManagementSystem.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +22,13 @@ builder.Services.AddLogging(configure =>  // 移到最前面，因為其他服�
 string connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
+
+// 新增: Email 和任務提醒相關服務
+builder.Services.Configure<SmtpSettings>(
+    builder.Configuration.GetSection("Smtp"));
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddScoped<ITaskReminderService, TaskReminderService>();
+builder.Services.AddHostedService<ReminderHostedService>();
 
 // 3. MVC和API相關服務
 builder.Services.AddControllersWithViews()

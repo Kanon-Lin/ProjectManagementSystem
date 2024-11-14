@@ -1,0 +1,37 @@
+﻿@using ProjectManagementSystem.Models.ViewModels
+@model FileVm  
+
+<form asp-controller="File" asp-action="Upload" method="post" enctype="multipart/form-data">
+    <input type="hidden" asp-for="TaskId" />  @* 不需要 value，直接綁定 Model *@
+    <div class="form-group">
+        <input type="file" asp-for="UploadFile" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-primary">上傳</button>
+</form>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>檔案名稱</th>
+            <th>上傳者</th>
+            <th>上傳時間</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var file in Model.Files)  @* 使用 Model.Files *@
+        {
+            <tr>
+                <td>@file.FileName</td>
+                <td>@file.UploadedByName</td>  @* 改用 UploadedByName *@
+                <td>@file.UploadedAt?.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                <td>
+                    <a asp-action="Download" asp-route-id="@file.FileId" class="btn btn-success">下載</a>
+                    <form asp-action="Delete" asp-route-id="@file.FileId" method="post" style="display:inline">
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('確定要刪除嗎?')">刪除</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
