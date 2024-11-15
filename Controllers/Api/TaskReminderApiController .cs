@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using ProjectManagementSystem.Models;
 using ProjectManagementSystem.Services;
+using System.Text.Json;
 
 namespace ProjectManagementSystem.Controllers.Api
 {
@@ -23,12 +26,20 @@ namespace ProjectManagementSystem.Controllers.Api
         }
 
         [HttpPost("test-email")]
-        public async Task<IActionResult> TestEmail([FromBody] EmailTestDto model)
+        public async Task<IActionResult> TestEmail([FromBody] string email)
         {
             try
             {
+                _logger.LogInformation($"嘗試發送測試郵件到: {email}");
+
+                var smtpSettings = HttpContext.RequestServices
+                    .GetRequiredService<IOptions<SmtpSettings>>()
+                    .Value;
+
+                _logger.LogInformation($"SMTP設定: {JsonSerializer.Serialize(smtpSettings)}");
+
                 await _emailService.SendEmailAsync(
-                    model.Email,
+                    email,
                     "測試郵件",
                     "這是一封測試郵件，用於確認郵件服務正常運作。"
                 );
@@ -36,14 +47,14 @@ namespace ProjectManagementSystem.Controllers.Api
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "測試郵件發送失敗");
-                return StatusCode(500, new { error = "郵件發送失敗", message = ex.Message });
+                _logger.LogError(ex, "測試郵件發送失敗，詳細錯誤: {Error}", ex.ToString());
+                return StatusCode(500, new
+                {
+                    error = "郵件發送失敗",
+                    message = ex.Message,
+                    details = ex.ToString()
+                });
             }
-        }
-
-        public class EmailTestDto
-        {
-            public string Email { get; set; }
         }
 
         [HttpPost("check-reminders")]

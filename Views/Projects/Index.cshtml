@@ -16,6 +16,39 @@
     </a>
 </div>
 
+<!-- Search & Filter Section -->
+<form method="get" class="mb-4">
+    <div class="row g-3">
+        <div class="col-md-3">
+            <input type="text" class="form-control" name="searchTerm" placeholder="Search project name..."
+                   value="@Model.SearchTerm">
+        </div>
+        <div class="col-md-2">
+            <input type="date" class="form-control" name="startDateFilter"
+                   value="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))">
+        </div>
+        <div class="col-md-2">
+            <input type="date" class="form-control" name="endDateFilter"
+                   value="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))">
+        </div>
+        <div class="col-md-2">
+            <select class="form-select" name="statusFilter" asp-items="@Model.StatusOptions">
+                <option value="">All Status</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select class="form-select" name="managerFilter" asp-items="@Model.ProjectManagers">
+                <option value="">All Managers</option>
+            </select>
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-search"></i>
+            </button>
+        </div>
+    </div>
+</form>
+
 @if (Model.Projects.Any())
 {
     <table class="table table-bordered">

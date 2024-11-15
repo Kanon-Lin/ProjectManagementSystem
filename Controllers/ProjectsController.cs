@@ -19,30 +19,125 @@ namespace ProjectManagementSystem.Controllers
             _context = context;
         }
 
-        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10)
+        public async Task<IActionResult> Index(string searchTerm,
+            DateTime? startDateFilter,
+            DateTime? endDateFilter,
+            string statusFilter,
+            int? managerFilter,
+            string sortOrder,
+            int pageNumber = 1,
+            int pageSize = 10)
         {
-            var totalProjects = await _context.Projects.CountAsync();
+            // 設置排序參數
+            ViewBag.NameSortParam = string.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
+            ViewBag.StartDateSortParam = sortOrder == "startDate" ? "startDate_desc" : "startDate";
+            ViewBag.EndDateSortParam = sortOrder == "endDate" ? "endDate_desc" : "endDate";
+            ViewBag.StatusSortParam = sortOrder == "status" ? "status_desc" : "status";
+            ViewBag.ManagerSortParam = sortOrder == "manager" ? "manager_desc" : "manager";
 
-            var projects = await _context.Projects
+            // 基礎查詢
+            var query = _context.Projects
+                .Include(p => p.Owner)
+                .AsQueryable();
+
+            // 套用搜尋條件
+            if (!string.IsNullOrEmpty(searchTerm))
+            {
+                query = query.Where(p => p.Name.Contains(searchTerm));
+            }
+
+            // 套用篩選條件
+            if (startDateFilter.HasValue)
+            {
+                query = query.Where(p => p.StartDate >= startDateFilter.Value);
+            }
+
+            if (endDateFilter.HasValue)
+            {
+                query = query.Where(p => p.EndDate <= endDateFilter.Value);
+            }
+
+            if (!string.IsNullOrEmpty(statusFilter))
+            {
+                query = query.Where(p => p.Status == statusFilter);
+            }
+
+            if (managerFilter.HasValue)
+            {
+                query = query.Where(p => p.OwnerId == managerFilter.Value);
+            }
+
+            // 套用排序
+            query = sortOrder switch
+            {
+                "name_desc" => query.OrderByDescending(p => p.Name),
+                "startDate" => query.OrderBy(p => p.StartDate),
+                "startDate_desc" => query.OrderByDescending(p => p.StartDate),
+                "endDate" => query.OrderBy(p => p.EndDate),
+                "endDate_desc" => query.OrderByDescending(p => p.EndDate),
+                "status" => query.OrderBy(p => p.Status),
+                "status_desc" => query.OrderByDescending(p => p.Status),
+                "manager" => query.OrderBy(p => p.Owner.Name),
+                "manager_desc" => query.OrderByDescending(p => p.Owner.Name),
+                _ => query.OrderBy(p => p.Name)
+            };
+
+            // 計算總數並套用分頁
+            var totalProjects = await query.CountAsync();
+            var projects = await query
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Include(p => p.Owner)   // 使用 Include 來加入 ProjectManagers 表，取得專案經理的名字。Owner 是指向 ProjectManager 的導航屬性
                 .ToListAsync();
 
-            var totalPages = (int)Math.Ceiling((double)totalProjects / pageSize);
+            // 準備下拉選單選項
+            var statusOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Value = "", Text = "All Status" }
+            }
+            .Union(new[]
+            {
+                new SelectListItem { Value = "未開始", Text = "未開始" },
+                new SelectListItem { Value = "進行中", Text = "進行中" },
+                new SelectListItem { Value = "已完成", Text = "已完成" },
+                new SelectListItem { Value = "已終止", Text = "已終止" },
+                new SelectListItem { Value = "已取消", Text = "已取消" }
+            })
+            .ToList();
+
+            var projectManagers = await _context.ProjectManagers
+                .Select(pm => new SelectListItem
+                {
+                    Value = pm.ManagerId.ToString(),
+                    Text = pm.Name
+                })
+                .ToListAsync();
+
+            projectManagers = new List<SelectListItem>
+            {
+                new SelectListItem{Value="",Text="All Managers"}
+            }
+            .Union(projectManagers).ToList();
 
             var model = new ProjectListVm
             {
-                Projects = projects ?? new List<Project>(),  // 確保 Projects 初始化為空列表，而不是 null
+                Projects = projects,
                 PageNumber = pageNumber,
                 PageSize = pageSize,
-                TotalPages = totalPages
+                TotalPages = (int)Math.Ceiling((double)totalProjects / pageSize),
+                SearchTerm = searchTerm,
+                StartDateFilter = startDateFilter,
+                EndDateFilter = endDateFilter,
+                StatusFilter = statusFilter,
+                ManagerFilter = managerFilter,
+                SortOrder = sortOrder,
+                StatusOptions = statusOptions,
+                ProjectManagers = projectManagers
             };
 
-            return View(model);  // 返回 View，並傳遞專案列表
+            return View(model);
         }
 
-        // GET: Projects/Create
+        [HttpGet]
         public IActionResult Create()
         {
             var model = new ProjectCreateVm
@@ -50,7 +145,6 @@ namespace ProjectManagementSystem.Controllers
                 StartDate = DateTime.Today
             };
 
-            // 使用 ViewBag 來處理下拉選單
             ViewBag.ProjectManagers = new SelectList(
                 _context.ProjectManagers,
                 "ManagerId",
@@ -61,7 +155,6 @@ namespace ProjectManagementSystem.Controllers
 
             return View(model);
         }
-
 
         [HttpPost]
         [ValidateAntiForgeryToken]
