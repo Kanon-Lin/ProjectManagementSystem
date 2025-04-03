@@ -1,0 +1,123 @@
+﻿@model IEnumerable<ProjectManagementSystem.Models.ViewModels.ProjectManagerVm>
+<style>
+    .equal-width-table th,
+    .equal-width-table td {
+        width: 33.33%;
+        text-align: center;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>專案經理列表</h2>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createManagerModal">
+        <i class="bi bi-plus"></i> 新增專案經理
+    </button>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>姓名</th>
+            <th>進行中專案數</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Name</td>
+                <td>
+                    <span class="badge bg-@(item.ActiveProjectsCount > 3 ? "danger" : "primary") rounded-pill">
+                        @item.ActiveProjectsCount
+                    </span>
+                </td>
+                <td>
+                    <button type="button" class="btn btn-warning"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editManagerModal"
+                            data-id="@item.ManagerId"
+                            data-name="@item.Name">
+                        <i class="bi bi-pencil"></i> 編輯
+                    </button>
+                    <form asp-action="Delete" asp-route-id="@item.ManagerId" method="post" style="display: inline;">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-danger"
+                                onclick="return confirm('確定要刪除此專案經理嗎？')">
+                            <i class="bi bi-trash"></i> 刪除
+                        </button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<!-- 新增專案經理 Modal -->
+<div class="modal fade" id="createManagerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="Create" method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title">新增專案經理</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-danger validation-summary"></div>
+                    <div class="mb-3">
+                        <label class="form-label">姓名</label>
+                        <input type="text" class="form-control" name="Name" required
+                               data-val="true" data-val-required="姓名是必填欄位">
+                        <span class="text-danger field-validation-valid" data-valmsg-for="Name"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">新增</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 編輯專案經理 Modal -->
+<div class="modal fade" id="editManagerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="Edit" method="post">
+                <input type="hidden" name="ManagerId" id="editManagerId">
+                <div class="modal-header">
+                    <h5 class="modal-title">編輯專案經理</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-danger validation-summary"></div>
+                    <div class="mb-3">
+                        <label class="form-label">姓名</label>
+                        <input type="text" class="form-control" name="Name" id="editName" required
+                               data-val="true" data-val-required="姓名是必填欄位">
+                        <span class="text-danger field-validation-valid" data-valmsg-for="Name"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">更新</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+    <script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+    <script>
+        // 處理編輯按鈕點擊事件
+        document.querySelectorAll('[data-bs-target="#editManagerModal"]').forEach(button => {
+            button.addEventListener('click', function () {
+                document.getElementById('editManagerId').value = this.dataset.id;
+                document.getElementById('editName').value = this.dataset.name;
+            });
+        });
+    </script>
+}

@@ -1,7 +1,7 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
-using ProjectManagementSystem.BackgroundServices;
+//using ProjectManagementSystem.BackgroundServices;
 using ProjectManagementSystem.Models;
 using ProjectManagementSystem.Models.Dtos;
 using ProjectManagementSystem.Models.EFModels;
@@ -28,7 +28,7 @@ builder.Services.Configure<SmtpSettings>(
     builder.Configuration.GetSection("Smtp"));
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<ITaskReminderService, TaskReminderService>();
-builder.Services.AddHostedService<ReminderHostedService>();
+//builder.Services.AddHostedService<ReminderHostedService>();
 
 // 3. MVC和API相關服務
 builder.Services.AddControllersWithViews()

@@ -23,8 +23,6 @@ public partial class TeamMember
 
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
-    public virtual ICollection<Project> Projects { get; set; } = new List<Project>();
-
     public virtual ICollection<TaskAssignment> TaskAssignments { get; set; } = new List<TaskAssignment>();
 
     public virtual ICollection<Task> Tasks { get; set; } = new List<Task>();

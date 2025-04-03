@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/ProjectManagementSystem.styles.css" asp-append-version="true" />
+    <!-- 引入 Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 </head>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -33,12 +35,10 @@
         </div>
         <div class="col-md-2">
             <select class="form-select" name="statusFilter" asp-items="@Model.StatusOptions">
-                <option value="">All Status</option>
             </select>
         </div>
         <div class="col-md-2">
             <select class="form-select" name="managerFilter" asp-items="@Model.ProjectManagers">
-                <option value="">All Managers</option>
             </select>
         </div>
         <div class="col-md-1">
@@ -54,12 +54,217 @@
     <table class="table table-bordered">
         <thead>
             <tr>
-                <th>Project Name</th>
+                <th>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Project Name</span>
+                        @if (Model.SortOrder == "name")
+                        {
+                            <a asp-action="Index"
+                               asp-route-sortOrder="name_desc"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-up"></i>
+                            </a>
+                        }
+                        else if (Model.SortOrder == "name_desc")
+                        {
+                            <a asp-action="Index"
+                               asp-route-sortOrder="name"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-down"></i>
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-action="Index"
+                               asp-route-sortOrder="name"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-down-up"></i>
+                            </a>
+                        }
+                    </div>
+                </th>
+
                 <th>Description</th>
-                <th>Start Date</th>
-                <th>End Date</th>
-                <th>Status</th>
-                <th>Manager</th>
+                <th>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Start Date</span>
+                        @if (Model.SortOrder == "startDate")
+                        {
+                            <a asp-action="Index" asp-route-sortOrder="startDate_desc"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-up"></i>
+                            </a>
+                        }
+                        else if (Model.SortOrder == "startDate_desc")
+                        {
+                            <a asp-action="Index" asp-route-sortOrder="startDate"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-down"></i>
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-action="Index" asp-route-sortOrder="startDate"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-down-up"></i>
+                            </a>
+                        }
+                    </div>
+                </th>
+                <th>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>End Date</span>
+                        @if (Model.SortOrder == "endDate")
+                        {
+                            <a asp-action="Index" asp-route-sortOrder="endDate_desc"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-up"></i>
+                            </a>
+                        }
+                        else if (Model.SortOrder == "endDate_desc")
+                        {
+                            <a asp-action="Index" asp-route-sortOrder="endDate"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-down"></i>
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-action="Index" asp-route-sortOrder="endDate"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-down-up"></i>
+                            </a>
+                        }
+                    </div>
+                </th>
+                <th>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Status</span>
+                        @if (Model.SortOrder == "status")
+                        {
+                            <a asp-action="Index" asp-route-sortOrder="status_desc"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-up"></i>
+                            </a>
+                        }
+                        else if (Model.SortOrder == "status_desc")
+                        {
+                            <a asp-action="Index" asp-route-sortOrder="status"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-down"></i>
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-action="Index" asp-route-sortOrder="status"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-down-up"></i>
+                            </a>
+                        }
+                    </div>
+                </th>
+                <th>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Manager</span>
+                        @if (Model.SortOrder == "manager")
+                        {
+                            <a asp-action="Index" asp-route-sortOrder="manager_desc"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-up"></i>
+                            </a>
+                        }
+                        else if (Model.SortOrder == "manager_desc")
+                        {
+                            <a asp-action="Index" asp-route-sortOrder="manager"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-down"></i>
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-action="Index" asp-route-sortOrder="manager"
+                               asp-route-searchTerm="@Model.SearchTerm"
+                               asp-route-startDateFilter="@(Model.StartDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-endDateFilter="@(Model.EndDateFilter?.ToString("yyyy-MM-dd"))"
+                               asp-route-statusFilter="@Model.StatusFilter"
+                               asp-route-managerFilter="@Model.ManagerFilter"
+                               class="text-end">
+                                <i class="bi bi-arrow-down-up"></i>
+                            </a>
+                        }
+                    </div>
+                </th>
+                
                 <th>Actions</th>
             </tr>
         </thead>
@@ -72,7 +277,7 @@
                     <td>@project.StartDate.ToShortDateString()</td>
                     <td>@project.EndDate?.ToShortDateString()</td>
                     <td>@project.Status</td>
-                    <td>@project.Owner?.Name</td> <!-- 使用導航屬性來顯示專案經理的名字 -->
+                    <td>@project.Owner?.Name</td>
                     <td>
                         <div class="btn-group">
                             <a asp-controller="Projects"

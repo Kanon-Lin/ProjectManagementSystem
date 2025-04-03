@@ -1,9 +1,17 @@
 ﻿@using ProjectManagementSystem.Models.ViewModels
 @model FileVm  
 
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>檔案管理</h3>
+    <a href="javascript:history.back()" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> 回到專案詳情
+    </a>
+
+</div>
+
 <form asp-controller="File" asp-action="Upload" method="post" enctype="multipart/form-data">
     <input type="hidden" asp-for="TaskId" />  @* 不需要 value，直接綁定 Model *@
-    <div class="form-group">
+    <div class="form-group mb-3">
         <input type="file" asp-for="UploadFile" class="form-control" />
     </div>
     <button type="submit" class="btn btn-primary">上傳</button>

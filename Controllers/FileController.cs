@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using ProjectManagementSystem.Models.EFModels;
 using ProjectManagementSystem.Models.ViewModels;
+using System.Threading.Tasks;
 using File = ProjectManagementSystem.Models.EFModels.File;
 using Task = System.Threading.Tasks.Task;
 
@@ -50,6 +51,39 @@ namespace ProjectManagementSystem.Controllers
 
             var fileBytes = await System.IO.File.ReadAllBytesAsync(fileInfo.FilePath);
             return File(fileBytes, "application/octet-stream", fileInfo.FileName);
+        }
+
+        // 4. 檔案刪除
+        [HttpPost]
+        public async Task<ActionResult> Delete(int id)
+        {
+            var taskId = 0;
+
+            try
+            {
+                var file = await _context.Files.FindAsync();
+                if (file == null) return NotFound();
+
+                taskId = file.TaskId;
+
+                if (System.IO.File.Exists(file.FilePath))
+                {
+                    System.IO.File.Delete(file.FilePath);
+                }
+
+                _context.Files.Remove(file);
+                await _context.SaveChangesAsync();
+
+                TempData["Message"] = "檔案已成功刪除";
+                return RedirectToAction(nameof(Index), new { taskId = file.TaskId });
+
+            }
+            catch (Exception ex)
+            {
+                TempData["Message"] = "刪除檔案時發生錯誤";
+            }
+            return RedirectToAction(nameof(Index), new { taskId }); 
+
         }
 
         #region Private Methods

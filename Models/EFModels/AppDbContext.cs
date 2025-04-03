@@ -103,11 +103,6 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.OwnerId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Projects_OwnerId");
-
-            entity.HasOne(d => d.OwnerNavigation).WithMany(p => p.Projects)
-                .HasForeignKey(d => d.OwnerId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Projects__OwnerI__3C69FB99");
         });
 
         modelBuilder.Entity<ProjectManager>(entity =>

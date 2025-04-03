@@ -73,75 +73,95 @@ namespace ProjectManagementSystem.Controllers.Api
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateProject(int id, ProjectUpdateDto projectDto)
         {
-            var project = await _context.Projects
-                .Include(p => p.Owner) // 確保包含 Owner 關聯
-                .FirstOrDefaultAsync(p => p.ProjectId == id);
+            if (projectDto == null)
+                return BadRequest("資料不能為空");
 
-            if (project == null)
-            {
-                return NotFound("找不到指定的專案");
-            }
-
-            project.Name = projectDto.Name;
-            project.Description = projectDto.Description;
-            project.Status = projectDto.Status;
-            project.OwnerId = projectDto.OwnerId;
-            project.StartDate = projectDto.StartDate;
-            project.EndDate = projectDto.EndDate;
+            if (id != projectDto.ProjectId)
+                return BadRequest("ID 不匹配");
 
             try
             {
+                var project = await _context.Projects
+                    .Include(p => p.Owner)
+                    .FirstOrDefaultAsync(p => p.ProjectId == id);
+
+                if (project == null)
+                    return NotFound("找不到指定的專案");
+
+                // 驗證 OwnerId 是否存在
+                var ownerExists = await _context.ProjectManagers
+                    .AnyAsync(pm => pm.ManagerId == projectDto.OwnerId);
+                if (!ownerExists)
+                    return BadRequest("指定的專案經理不存在");
+
+                // 更新專案資料
+                project.Name = projectDto.Name;
+                project.Description = projectDto.Description;
+                project.Status = projectDto.Status;
+                project.OwnerId = projectDto.OwnerId;
+                project.StartDate = projectDto.StartDate;
+                project.EndDate = projectDto.EndDate;
+
                 await _context.SaveChangesAsync();
 
-                // 更新後重新查詢以獲取最新的 Owner 資料
-                project = await _context.Projects
+                // 更新後重新查詢
+                var updatedProject = await _context.Projects
                     .Include(p => p.Owner)
                     .Include(p => p.Tasks)
                         .ThenInclude(t => t.AssignedTo)
                     .FirstOrDefaultAsync(p => p.ProjectId == id);
 
-                var updatedProject = new ProjectDetailsDto
+                return Ok(new ProjectDetailsDto
                 {
-                    ProjectId = project.ProjectId,
-                    Name = project.Name,
-                    Description = project.Description,
-                    Status = project.Status,
-                    OwnerId = project.OwnerId,
-                    OwnerName = project.Owner.Name, // 使用 null 條件運算子
-                    StartDate = project.StartDate,
-                    EndDate = project.EndDate
-                };
-
-                return Ok(updatedProject);
+                    ProjectId = updatedProject.ProjectId,
+                    Name = updatedProject.Name,
+                    Description = updatedProject.Description,
+                    Status = updatedProject.Status,
+                    OwnerId = updatedProject.OwnerId,
+                    OwnerName = updatedProject.Owner?.Name,
+                    StartDate = updatedProject.StartDate,
+                    EndDate = updatedProject.EndDate
+                });
             }
             catch (DbUpdateConcurrencyException)
             {
                 if (!ProjectExists(id))
-                {
-                    return NotFound();
-                }
+                    return NotFound("專案可能已被刪除");
                 throw;
+            }
+            catch (Exception ex)
+            {
+                // 記錄錯誤
+                _logger.LogError(ex, "更新專案 {ProjectId} 時發生錯誤", id);
+                return StatusCode(500, "更新專案時發生錯誤");
             }
         }
 
         // POST: api/projects/{id}/tasks
         [HttpPost("{projectId}/tasks")]
-        public async Task<ActionResult<TaskDto>> CreateTask(int projectId, TaskCreateDto dto)
+        public async Task<IActionResult> CreateTask(int projectId, [FromBody]TaskCreateDto dto)
         {
             try
             {
-                _logger.LogInformation($"正在為專案 {projectId} 建立新任務");
-
-                // 1. 檢查專案是否存在
                 if (!ProjectExists(projectId))
+                {
                     return NotFound(new ErrorResponseDto
                     {
                         Error = "NotFound",
-                        Message = $"找不到ID為 {projectId} 的專案",
+                        Message = $"找不到ID為{projectId}的專案",
                         StatusCode = 404
                     });
+                }
+                if(await IsProjectCompleted(projectId))
+                {
+                    return BadRequest(new ErrorResponseDto
+                    {
+                        Error = "InvalidOperation",
+                        Message = $"已完成的專案不能新增任務",
+                        StatusCode = 400
+                    });
+                }
 
-                // 2. 驗證 DTO
                 var validationResult = await _validator.ValidateAsync(dto);
                 if (!validationResult.IsValid)
                 {
@@ -154,70 +174,40 @@ namespace ProjectManagementSystem.Controllers.Api
                     });
                 }
 
-                // 3. 檢查專案狀態
-                if (await IsProjectCompleted(projectId))
-                    return BadRequest(new ErrorResponseDto
-                    {
-                        Error = "InvalidOperation",
-                        Message = "已完成的專案不能新增任務",
-                        StatusCode = 400
-                    });
-
-                // 4. 使用交易新增任務
-                using var transaction = await _context.Database.BeginTransactionAsync();
-                try
+                var task = new ProjectTask
                 {
-                    var task = new ProjectTask
-                    {
-                        ProjectId = projectId,
-                        Title = dto.Title,
-                        Description = dto.Description,
-                        Status = dto.Status,
-                        DueDate = dto.DueDate,
-                        Priority = dto.Priority,
-                        AssignedToId = dto.AssignedToId
-                    };
+                    ProjectId = projectId,
+                    Title = dto.Title,
+                    Description = dto.Description,
+                    Status = dto.Status,
+                    DueDate = dto.DueDate,
+                    Priority = dto.Priority,
+                    AssignedToId = dto.AssignedToId,
+                };
 
-                    _context.Tasks.Add(task);
-                    await _context.SaveChangesAsync();
+                _context.Tasks.Add(task);
+                await _context.SaveChangesAsync();
 
-                    var createdTask = await _context.Tasks
-                        .Include(t => t.AssignedTo)
-                        .FirstOrDefaultAsync(t => t.TaskId == task.TaskId);
-
-                    var taskDto = new TaskDto
-                    {
-                        TaskId = createdTask.TaskId,
-                        Title = createdTask.Title,
-                        Description = createdTask.Description,
-                        Status = createdTask.Status,
-                        DueDate = createdTask.DueDate,
-                        Priority = createdTask.Priority,
-                        AssignedToId = createdTask.AssignedToId ?? 0,
-                        AssignedToName = createdTask.AssignedTo?.Name
-                    };
-
-                    await transaction.CommitAsync();
-                    _logger.LogInformation($"已成功建立任務 ID: {taskDto.TaskId}");
-
-                    return CreatedAtAction(
-                        nameof(GetProject),
-                        new { id = projectId },
-                        taskDto);
-                }
-                catch (Exception)
+                //回傳創建後的資料
+                return CreatedAtAction(nameof(ProjectTask), new { projectId = projectId, taskId = task.TaskId }, new TaskDto
                 {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
+                    TaskId = task.TaskId,
+                    Title = task.Title,
+                    Description = task.Description,
+                    Status = task.Status,
+                    DueDate = task.DueDate,
+                    Priority = task.Priority,
+                    AssignedToId = task.AssignedToId ?? 0,
+                    AssignedToName = (await _context.TeamMembers.FindAsync(task.AssignedToId))?.Name
+                });
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
-                _logger.LogError(ex, "建立任務時發生錯誤");
+                _logger.LogError(ex, "創建任務時發生錯誤");
                 return StatusCode(500, new ErrorResponseDto
                 {
-                    Error = "InternalServerError",
-                    Message = "建立任務時發生錯誤",
+                    Error = "InternalError",
+                    Message = "創建任務時發生錯誤",
                     StatusCode = 500
                 });
             }
